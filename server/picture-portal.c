@@ -132,12 +132,14 @@ int main(int argc, char *argv[]) {
   //add(test);
   list_images();
   while(1) {
-    send_image();
-    sleep(3);
+    if(read_byte() == 0x1B) {
+      send_image();
+    }
+    //sleep(3);
   }
   
   //loop();
-  list_images();
+  //list_images();
   
   close(serial_fd);
   
