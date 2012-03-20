@@ -7,10 +7,15 @@
 /*
  * Adds the filename to the Linked List
  */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include "linkedlist.h"
+
 void add(char * filen){
     node * curr = tail;
     tail = (node *)malloc(sizeof(node));
-    tail->filename = filen;
+    strcpy(tail->filename, filen);
     if(curr == NULL){
         head = tail;
     }else{
@@ -21,7 +26,7 @@ void add(char * filen){
 /*
  * Returns the next node
  */
- node * iterate(void){
+ node * iterating(void){
     if(iterate == NULL){
         return NULL;
     }

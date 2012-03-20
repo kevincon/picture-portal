@@ -6,9 +6,9 @@
 
 typedef char * string;
 
-struct pp_image{
+typedef struct pp_image{
   //int frame[IMAGE_WIDTH][IMAGE_HEIGHT];
   char filename[IMAGE_MAX_FILENAME_LENGTH]; 
-};
+} img;
 
 #endif

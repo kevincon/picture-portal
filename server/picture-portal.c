@@ -11,6 +11,7 @@
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
 #include <termios.h> /* POSIX terminal control definitions */
+#include <stdint.h>
 
 #include "picture-portal.h"
 #include "linkedlist.h"     /* Linked List Implementation */
@@ -19,6 +20,8 @@ char *serial_path;
 int serial_fd;
 int image_index = 0;
 int num_images = 0;
+node *current;
+img image_data;
 
 void open_port() {
   serial_fd = open(serial_path, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -42,7 +45,6 @@ char read_byte() {
 } 
 
 void list_images() {
-  boolean error;
   int num_files = -2; //skip . and ..
   int i = 0;
   DIR *d;
@@ -62,14 +64,33 @@ void list_images() {
 }
 
 void send_image() {
-  list_images();
+  char CS = sizeof(image_data);
+  char buf;
+  
+  //list_images();
   
   //TODO pick the next image (use image_index on the list of images)
+  current = iterating();
+  
+  //For demo, send filename
+  strcpy(image_data.filename, current->filename);
+  buf = 0x06;
+  write(serial_fd, &buf, 1);
+  buf = 0x85;
+  write(serial_fd, &buf, 1);
+  buf = sizeof(image_data);
+  write(serial_fd, &buf, 1);
+  int i;
+  uint8_t *addr = (uint8_t*)(&image_data);
+  for(i = 0; i < sizeof(image_data), i++;) {
+    CS ^= *(addr + i);
+    buf = *(addr + i);
+    write(serial_fd, &buf, 1);
+  }
+  buf = CS;
+  write(serial_fd, &buf, 1);
   
   //TODO send the image over serial, pixel by pixel
-  
-  if (image_index++ >= num_images) 
-    image_index = 0;
 }
 
 void loop() {
