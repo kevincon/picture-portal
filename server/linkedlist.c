@@ -4,9 +4,34 @@
  * Linked List Implementation - C File
  */
 
+/*
+ * Adds the filename to the Linked List
+ */
+void add(char * filen){
+    head = (node *)malloc(sizeof(node));
+    head->filename = fn;
+    if(curr == NULL){
+        tail = head;
+    }else{
+        curr->next = head;
+    }
+    curr = head;
+}
 
-struct linked_list {
-   char[50] filename;
-   struct linked_list * next;
-};
-typedef struct linked_list node;
+
+/*
+ * Returns the next node
+ */
+ node * iterate(void){
+    node * returnnode = iterate;
+    iterate = iterate->next;
+    return returnnode;
+}
+ 
+ 
+/*
+ * Reset Iterator
+ */
+ void resetIterator(void){
+    iterate = tail;
+}
