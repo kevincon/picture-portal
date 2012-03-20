@@ -6,7 +6,7 @@
 
 // Linked List Struct Definition
 typedef struct linked_list{
-    char filename[50];
+    char filename[30];
     struct linked_list * next;
 } node;
 

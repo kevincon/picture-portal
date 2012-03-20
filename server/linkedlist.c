@@ -28,7 +28,8 @@ void add(char * filen){
  */
  node * iterating(void){
     if(iterate == NULL){
-        return NULL;
+        resetIterator();
+        return iterate;
     }
     node * returnnode = iterate;
     iterate = iterate->next;

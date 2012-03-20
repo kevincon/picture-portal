@@ -3,13 +3,13 @@
 
 #define BUTTON_PIN                  3
 
-#define SERIAL_RX_PIN               8
-#define SERIAL_TX_PIN               9
+#define SERIAL_TX_PIN               6
+#define SERIAL_RX_PIN               7
 #define SERIAL_REQUEST_IMAGE_BYTE   0x1B
 
 #define IMAGE_WIDTH                 128
 #define IMAGE_HEIGHT                128
-#define IMAGE_MAX_FILENAME_LENGTH   50 
+#define IMAGE_MAX_FILENAME_LENGTH   30 
 
 SoftwareSerial serialComm(SERIAL_RX_PIN, SERIAL_TX_PIN);
 
@@ -33,6 +33,7 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT);
   digitalWrite(BUTTON_PIN, HIGH);
   attachInterrupt(1, button_press, FALLING);
+  Serial.println("reset");
 }
 
 /* 
@@ -47,9 +48,18 @@ void button_press() {
 }
 
 void loop() {
+  
   if(ET.receiveData()){ //if we've received an image
     Serial.print("Received image: ");
     Serial.println(image_data.filename);
   }
   delay(2500);
+  
+  /*
+  uint8_t buf;
+  if(serialComm.available()) {
+    buf = serialComm.read();
+    Serial.println(buf, HEX);
+  }
+  */
 }

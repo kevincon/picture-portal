@@ -2,7 +2,7 @@
 #define PICTURE_PORTAL_H
 
 #define DEFAULT_SERIAL_PORT         "/dev/ttyACM0"
-#define IMAGE_MAX_FILENAME_LENGTH   50
+#define IMAGE_MAX_FILENAME_LENGTH   30
 
 typedef char * string;
 
