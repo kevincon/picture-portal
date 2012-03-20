@@ -1,3 +1,8 @@
+/* Kevin Conley, William Etter, Teddy Zhang
+ * CIS-542 - Final Project
+ * Spring 2012
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -8,6 +13,7 @@
 #include <termios.h> /* POSIX terminal control definitions */
 
 #include "picture-portal.h"
+#include "linkedlist.h"     /* Linked List Implementation */
 
 char *serial_path;
 int serial_fd;
@@ -36,6 +42,7 @@ char read_byte() {
 } 
 
 void list_images() {
+  boolean error;
   int num_files = -2; //skip . and ..
   int i = 0;
   DIR *d;
