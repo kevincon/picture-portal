@@ -4,7 +4,6 @@
  * Linked List Implementation - H File
  */
 
-
 /* Function Declarations */
 void add(char * filen);
 node * iterate(void);
@@ -18,4 +17,4 @@ typedef struct linked_list{
 } node;
 
 // Current, Head, Tail, and Iterate Nodes
-node * curr, head, tail, iterate;
+node * head, tail, iterate;

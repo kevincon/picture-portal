@@ -8,30 +8,35 @@
  * Adds the filename to the Linked List
  */
 void add(char * filen){
-    head = (node *)malloc(sizeof(node));
-    head->filename = fn;
+    node * curr = tail;
+    tail = (node *)malloc(sizeof(node));
+    tail->filename = filen;
     if(curr == NULL){
-        tail = head;
+        head = tail;
     }else{
-        curr->next = head;
+        curr->next = tail;
     }
-    curr = head;
 }
-
 
 /*
  * Returns the next node
  */
  node * iterate(void){
+    if(iterate == NULL){
+        return NULL;
+    }
     node * returnnode = iterate;
     iterate = iterate->next;
+    if(iterate == NULL){
+        // Reset Linked List
+        resetIterator();
+    }
     return returnnode;
 }
- 
  
 /*
  * Reset Iterator
  */
  void resetIterator(void){
-    iterate = tail;
+    iterate = head;
 }
