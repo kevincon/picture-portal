@@ -48,12 +48,13 @@ public class AndroidActivity extends Activity {
     
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    	Log.d("PicturePortal", "Got to onactivityresult");
         if (requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 // Image captured and saved to fileUri specified in the Intent
             	//TODO need to move on to sending image to server
-                Toast.makeText(this, "Image saved to:\n" +
-                         data.getData(), Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "Image saved to:\n" +
+                         //data.getData(), Toast.LENGTH_SHORT).show();
             } else if (resultCode == RESULT_CANCELED) {
                 //let user know they cancelled the image capture
             	Toast.makeText(this, "Image capture canceled.\n", Toast.LENGTH_SHORT).show();
