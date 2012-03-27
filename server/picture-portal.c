@@ -18,10 +18,11 @@
 
 char *serial_path;
 int serial_fd;
+FILE * image_fd;
 int image_index = 0;
 int num_images = 0;
 node *current;
-img image_data;
+pixel image_data;
 
 void open_port() {
   serial_fd = open(serial_path, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -44,77 +45,83 @@ char read_byte() {
     return val;
 } 
 
-void list_images() {
-  //int num_files = -2; //skip . and ..
+void find_images() {
   int i = 0;
   DIR *d;
   struct dirent *dir;
   d = opendir("./images");
   if (d) {
     while ((dir = readdir(d)) != NULL) {
-      //num_files++;
-      printf("%s\n", dir->d_name);
-      add(dir->d_name);
-      //TODO only look at image files (e.g. having a .BMP extension)
-      //TODO compile a list of file name strings to return from this function
+      if(!strcmp(".",dir->d_name) || !(strcmp("..",dir->d_name))) {
+        printf("skipping %s...\n", dir->d_name);
+      } else {
+        printf("adding %s...\n", dir->d_name);
+        add(dir->d_name);
+      }
     }
     closedir(d);
-    
-    //printf("num files: %d\n", num_files);
   }
+}
+
+//return 0 if fail to open, -1 if path null, otherwise return fd
+int open_image() {
+  current = iterating();
+  if(current == NULL) 
+    return -1;
+  strcpy(image_data.filename, current->filename);
+  image_fd = fopen(image_data.filename, "r");
+  if(!image_fd)
+    return 0;
+  else
+    return (int) image_fd;
 }
 
 void send_image() {
+  int i, x, y;
   char CS = sizeof(image_data);
   uint8_t buf;
+  uint8_t width, height, bit_mode, byte_count;
+  fread(&width, 1, 1, image_fd);
+  fread(&height, 1, 1, image_fd);
+  fread(&bit_mode, 1, 1, image_fd);
+  fread(&byte_count, 1, 1, image_fd);
   
-  //list_images();
-  
-  //TODO pick the next image (use image_index on the list of images)
-  current = iterating();
-  
-  //For demo, send filename
-  //strncpy(image_data.filename, current->filename, sizeof(image_data.filename));
-  strcpy(image_data.filename, current->filename);
-  printf("attempting to send: %s\n", image_data.filename);
-  buf = 0x06;
-  write(serial_fd, &buf, 1);
-  buf = 0x85;
-  write(serial_fd, &buf, 1);
-  buf = sizeof(image_data);
-  write(serial_fd, &buf, 1);
-  int i;
-  uint8_t *addr = (uint8_t*)(&image_data);
-  //printf("about to enter for loop\n");
-  for(i = 0; i < sizeof(image_data); i++) {
-    //printf("got in\n");
-    //printf("sending data byte number %d, value = %c\n", i, *(addr + i));
-    CS ^= *(addr + i);
-    buf = *(addr + i);
-    write(serial_fd, &buf, 1);
+  if (!(width == 0x80 && height == 0x80 && bit_mode == 0x04 && byte_count == 0x02)) {
+    printf("error: image not right format\n");
+    return;
   }
-  buf = CS;
-  //printf("about to write cs\n");
-  write(serial_fd, &buf, 1);
-  //printf("done writing cs: %x\n", CS);
-  /*
-  buf = 0xAA;
-  write(serial_fd, &buf, 1);
-  write(serial_fd, &buf, 1);
-  write(serial_fd, &buf, 1);
-  */
-  //TODO send the image over serial, pixel by pixel
+  
+  printf("attempting to send: %s\n", image_data.filename);
+  
+  for (x = 0; i < width; x++) {
+    for (y= 0; y < height; y++) {
+      //grab a pixel    
+      image_data.x = x;
+      image_data.y = y;
+      fread(&image_data.color, 3, 1, image_fd);
+      
+      //send it over serial using EasyTransfer method  
+      buf = 0x06;
+      write(serial_fd, &buf, 1);
+      buf = 0x85;
+      write(serial_fd, &buf, 1);
+      buf = sizeof(image_data);
+      write(serial_fd, &buf, 1);
+      
+      uint8_t *addr = (uint8_t*)(&image_data);
+      for(i = 0; i < sizeof(image_data); i++) {
+        CS ^= *(addr + i);
+        buf = *(addr + i);
+        write(serial_fd, &buf, 1);
+      }
+      buf = CS;
+      write(serial_fd, &buf, 1);
+    }
+  }
 }
 
-void loop() {
-  while(serial_fd) {
-    if (read_byte() == 0x1B) {
-      send_image();
-    }
-    //TODO listen over internet for a new image
-    
-    //TODO if image received, add to list of images and send to arduino immediately
-  }
+void close_image() {
+  fclose(image_fd);
 }
 
 int main(int argc, char *argv[]) {
@@ -130,16 +137,18 @@ int main(int argc, char *argv[]) {
   //test->filename = "test.jpg";
   //char test[50] = "test.jpg";
   //add(test);
-  list_images();
+  find_images();
   while(1) {
     if(read_byte() == 0x1B) {
+      if(open_image() <= 0)
+        continue;
       send_image();
+      close_image();
     }
-    //sleep(3);
+    //TODO listen over internet for a new image
+    
+    //TODO if image received, add to list of images and send to arduino immediately
   }
-  
-  //loop();
-  //list_images();
   
   close(serial_fd);
   

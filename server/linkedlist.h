@@ -4,9 +4,11 @@
  * Linked List Implementation - H File
  */
 
+#include "picture-portal.h"
+
 // Linked List Struct Definition
 typedef struct linked_list{
-    char filename[30];
+    char filename[IMAGE_MAX_FILENAME_LENGTH];
     struct linked_list * next;
 } node;
 
