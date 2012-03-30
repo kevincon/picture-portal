@@ -1,65 +1,100 @@
-#include "SoftEasyTransfer.h"
-#include <SoftwareSerial.h>
+/* ********************************************************************** */
+/*                          Picture Portal                                */
+/*                        Arduino Program Code                            */
+/*                                                                        */
+/* Authors : Kevin Conley (BSE '12)                                       */
+/*           William Etter (MSE '12)                                      */
+/*           Teddy Zhang (BSE/MSE '12)                                    */
+/*                                                                        */
+/*                      University of Pennsylvania                        */
+/* CIS-542 - Embedded Systems Programming (Spring 2012)                   */
+/* Date : March 23, 2011                                                  */
+/* Version : 1.0                                                          */
+/* Hardware : Arduino UNO, 2.8" TFT Touch Screen (ILI9325)                */
+/* ********************************************************************** */
 
-#define BUTTON_PIN                  3
+#define DEBUGGING 1
 
-#define SERIAL_TX_PIN               6
-#define SERIAL_RX_PIN               7
-#define SERIAL_REQUEST_IMAGE_BYTE   0x1B
+/* ****************************************************************************** */
+/* *******************************   About  ************************************* */
+/* ****************************************************************************** */
+// This is the Arduino Program code for the Picture Portal system, submitted as the
+// final project for CIS-542 at the University of Pennsylvania 2012.
 
-#define IMAGE_WIDTH                 128
-#define IMAGE_HEIGHT                128
-#define IMAGE_MAX_FILENAME_LENGTH   30 
 
-SoftwareSerial serialComm(SERIAL_RX_PIN, SERIAL_TX_PIN);
+/* ****************************************************************************** */
+/* ******************************   TO DO  ************************************** */
+/* ****************************************************************************** */
+// Set up Serial communication between computer server and arduino
+// Display startup logo on LCD
+// Display controls on screen
+// Display image on screen
+// Swipe motion to switch images
 
-SoftEasyTransfer ET; 
 
-struct pp_image{
-  //int frame[IMAGE_WIDTH][IMAGE_HEIGHT];
-  char filename[IMAGE_MAX_FILENAME_LENGTH]; 
-};
+/* ****************************************************************************** */
+/* ****************************** Includes ************************************** */
+/* ****************************************************************************** */
+#include "arduino_picture_portal.h"
 
-//this global var will hold data about the current image
-pp_image image_data;
 
-void setup() {
-  serialComm.begin(9600);
-  Serial.begin(9600);
-  //start the library, pass in the data details and the name of the serial port.
-  ET.begin(details(image_data), &serialComm);
+/* ****************************************************************************** */
+/* **************************** Setup Program *********************************** */
+/* ****************************************************************************** */
+void setup(void) {
+  initPicturePortal();                // Initialize the Picture Portal Display
   
-  //setup lcd shield button for input, pull-up resistor, with interrupt on falling edge
-  pinMode(BUTTON_PIN, INPUT);
-  digitalWrite(BUTTON_PIN, HIGH);
-  attachInterrupt(1, button_press, FALLING);
-  Serial.println("reset");
+  
+  
+  // Display Logo on Screen
+  
+  
+  
+  tft.fillRect(0, 0, BOXSIZE, BOXSIZE, RED);
+  tft.fillRect(5, 5, BOXSIZE, BOXSIZE, YELLOW);
+  tft.fillRect(10, 10, BOXSIZE, BOXSIZE, GREEN);
+  tft.fillRect(15, 15, BOXSIZE, BOXSIZE, CYAN);
+  tft.fillRect(20, 20, BOXSIZE, BOXSIZE, BLUE);
+  tft.fillRect(25, 25, BOXSIZE, BOXSIZE, MAGENTA);
+
+ 
+
+ currentcolor = RED;
+ 
 }
 
-/* 
- * Callback for button press. Button is active-low.
- */
-void button_press() {
-  //poor-man's debouncing, might need to change to an empty while loop
-  if(!digitalRead(BUTTON_PIN)) {
-    Serial.println("Requesting new image from server...");
-    serialComm.write(SERIAL_REQUEST_IMAGE_BYTE); 
-  }
-}
 
-void loop() {
+
+/* ****************************************************************************** */
+/* **************************** Main Program ************************************ */
+/* ****************************************************************************** */
+void loop()
+{
+  delay(LOOPDELAY);
   
-  if(ET.receiveData()){ //if we've received an image
-    Serial.print("Received image: ");
-    Serial.println(image_data.filename);
-  }
-  delay(2500);
   
-  /*
-  uint8_t buf;
-  if(serialComm.available()) {
-    buf = serialComm.read();
-    Serial.println(buf, HEX);
+  // Check for Data
+  if(DEBUGGING){
+    uint8_t buf;
+    if(Serial.available()) {
+      buf = Serial.read();
+      Serial.println(buf, HEX);
+    }
+  }else{
+    //if(ET.receiveData()){ //if we've received an image
+      Serial.print("Received image: ");
+      Serial.println(image_data.filename);
+    //}
   }
-  */
+  
+  
+  // Check for Button Pressed
+  PPgetPoint();       // Get the pressed point
+  if (newPoint){
+    if (((p.y-PENRADIUS) > BOXSIZE) && ((p.y+PENRADIUS) < tft.height())) {
+      tft.fillCircle(p.x, p.y, PENRADIUS, currentcolor);
+    }
+  }
+  
+  
 }
