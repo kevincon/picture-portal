@@ -2,39 +2,22 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical" 
-    android:baselineAligned="false" >
+    android:baselineAligned="false"
+    android:orientation="vertical" >
 
-    <LinearLayout
-        android:id="@+id/linearLayout2"
-        android:layout_width="fill_parent"
+    <ImageView
+        android:id="@+id/imageView1"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="0.71"
-        android:gravity="center|top" >
+        android:layout_weight=".65"
+        android:src="@drawable/picture_portal" />
 
-        <TextView
-            android:id="@+id/textView1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Picture Portal"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/linearLayout1"
-        android:layout_width="fill_parent"
+    <ImageButton
+        android:id="@+id/button1"
+        android:layout_width="120dp"
         android:layout_height="wrap_content"
-        android:layout_weight="0.20"
-        android:gravity="center" >
-
-        <Button
-            android:id="@+id/button1"
-            android:layout_width="fill_parent"
-            android:layout_height="92dp"
-            android:text="Take Picture!"
-            android:textSize="40dp" 
-            android:onClick="takePicture" />
-
-    </LinearLayout>
+        android:layout_gravity="center"
+        android:onClick="takePicture"
+        android:src="@drawable/camera_icon" />
 
 </LinearLayout>
