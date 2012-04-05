@@ -4,14 +4,11 @@
  * Linked List Implementation - C File
  */
 
+#include "linkedlist.h"
+
 /*
  * Adds the filename to the Linked List
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "linkedlist.h"
-
 void add(char * filen){
     node * curr = tail;
     tail = (node *)malloc(sizeof(node));
@@ -20,19 +17,37 @@ void add(char * filen){
         head = tail;
     }else{
         curr->next = tail;
+        tail->previous = curr;
     }
 }
 
 /*
  * Returns the next node
  */
- node * iterating(void){
+ node * nextNode(void){
     if(iterate == NULL){
         resetIterator();
         return iterate;
     }
     node * returnnode = iterate;
     iterate = iterate->next;
+    if(iterate == NULL){
+        // Reset Linked List
+        resetIterator();
+    }
+    return returnnode;
+}
+
+/*
+ * Returns the previous node
+ */
+ node * previousNode(void){
+    if(iterate == NULL){
+        resetIterator();
+        return iterate;
+    }
+    node * returnnode = iterate;
+    iterate = iterate->previous;
     if(iterate == NULL){
         // Reset Linked List
         resetIterator();
