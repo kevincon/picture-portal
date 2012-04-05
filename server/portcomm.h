@@ -6,6 +6,8 @@
 #ifndef _PORT_COMM_H_
 #define _PORT_COMM_H_
 
-int start_server(int);
+void init_portcomm(int PORT_NUMBER);
+int receive_portcomm(void);
+void close_portcomm(void);
 
 #endif
