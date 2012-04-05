@@ -3,26 +3,19 @@
  * Spring 2012
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <dirent.h>
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
-#include <termios.h> /* POSIX terminal control definitions */
-#include <stdint.h>
 
 #include "picture-portal.h"
 #include "linkedlist.h"     /* Linked List Implementation */
+#include "serialcomm.h"
 
 char *serial_path;
-int serial_fd;
+
 FILE * image_fd;
 int image_index = 0;
 int num_images = 0;
 node *current;
 pixel image_data;
+
 
 void open_port() {
   serial_fd = open(serial_path, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -46,7 +39,7 @@ char read_byte() {
 } 
 
 void find_images() {
-  int i = 0;
+  //int i = 0;
   DIR *d;
   struct dirent *dir;
   d = opendir("./images");
@@ -64,8 +57,9 @@ void find_images() {
 }
 
 //return 0 if fail to open, -1 if path null, otherwise return fd
+/*
 int open_image() {
-  current = iterating();
+  //current = iterating();
   if(current == NULL) 
     return -1;
   strcpy(image_data.filename, current->filename);
@@ -75,7 +69,10 @@ int open_image() {
   else
     return (int) image_fd;
 }
+*/
 
+
+/*
 void send_image() {
   int i, x, y;
   char CS = sizeof(image_data);
@@ -119,6 +116,7 @@ void send_image() {
     }
   }
 }
+*/
 
 void close_image() {
   fclose(image_fd);
@@ -140,10 +138,10 @@ int main(int argc, char *argv[]) {
   find_images();
   while(1) {
     if(read_byte() == 0x1B) {
-      if(open_image() <= 0)
-        continue;
-      send_image();
-      close_image();
+      //if(open_image() <= 0)
+        //continue;
+      //send_image();
+      //close_image();
     }
     //TODO listen over internet for a new image
     

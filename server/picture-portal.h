@@ -1,10 +1,21 @@
-#ifndef PICTURE_PORTAL_H
-#define PICTURE_PORTAL_H
+#ifndef _PICTURE_PORTAL_H_
+#define _PICTURE_PORTAL_H_
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>  /* String function definitions */
+#include <unistd.h>  /* UNIX standard function definitions */
+#include <fcntl.h>   /* File control definitions */
+#include <errno.h>   /* Error number definitions */
+#include <termios.h> /* POSIX terminal control definitions */
 
 #define DEFAULT_SERIAL_PORT         "/dev/ttyACM0"
 #define IMAGE_MAX_FILENAME_LENGTH   30
+
+int serial_fd;
+
 
 typedef char * string;
 
