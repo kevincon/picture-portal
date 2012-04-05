@@ -14,15 +14,23 @@ http://www.binarii.com/files/papers/c_sockets.txt
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+
 #include "portcomm.h"
 
-int start_server(int PORT_NUMBER)
-{
+// structs to represent the server and client
+struct sockaddr_in server_addr,client_addr;
+int sock; // socket descriptor
+int sin_size;
+int fd;
+// buffer to read data into
+char recv_data[1024];
 
-      // structs to represent the server and client
-      struct sockaddr_in server_addr,client_addr;    
+
+void init_portcomm(int PORT_NUMBER){
       
-      int sock; // socket descriptor
+      //struct sockaddr_in server_addr,client_addr;    
+      
+      //int sock; // socket descriptor
 
       // 1. socket: creates a socket descriptor that you later use to make other system calls
       if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -58,13 +66,15 @@ int start_server(int PORT_NUMBER)
      
 
       // 4. accept: wait until we get a connection on that port
-      int sin_size = sizeof(struct sockaddr_in);
-      int fd = accept(sock, (struct sockaddr *)&client_addr,(socklen_t *)&sin_size);
+      sin_size = sizeof(struct sockaddr_in);
+      fd = accept(sock, (struct sockaddr *)&client_addr,(socklen_t *)&sin_size);
       printf("Server got a connection from (%s, %d)\n", inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
       
-      // buffer to read data into
-      char recv_data[1024];
       
+}
+
+
+int receive_portcomm(){
       // 5. recv: read incoming message into buffer
       int bytes_received = recv(fd,recv_data,1024,0);
       // null-terminate the string
@@ -79,11 +89,12 @@ int start_server(int PORT_NUMBER)
       send(fd, send_data, strlen(send_data), 0);
 
       printf("Server sent message: %s\n", send_data);
-
-      // 7. close: close the socket connection
-      close(fd);
-      
-      printf("Server closed connection\n");
-  
   return 0;
 }
+
+void close_portcomm(void){
+      // 7. close: close the socket connection
+      close(fd);
+      printf("Server closed connection\n");
+}
+

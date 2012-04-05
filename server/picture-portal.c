@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
   initppSerial();
   open_port();
 
-  start_server(PORT_NUM);
+  init_portcomm(PORT_NUM);
   
   //node * test = (node*) malloc(sizeof(node));
   //test->filename = "test.jpg";
@@ -142,6 +142,7 @@ int main(int argc, char *argv[]) {
   //add(test);
   //find_images();
   while(1) {
+     receive_portcomm();
      if(receiveData()){
 	printf("WHAAT!?!?\n");
      }
@@ -172,6 +173,7 @@ int main(int argc, char *argv[]) {
   }
   
   close(serial_fd);
+  close_portcomm();
   
   return(0);
 }
