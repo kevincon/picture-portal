@@ -13,7 +13,7 @@
 /* Hardware : Arduino UNO, 2.8" TFT Touch Screen (ILI9325)                */
 /* ********************************************************************** */
 
-#define DEBUGGING 1
+#define DEBUGGING 0
 
 /* ****************************************************************************** */
 /* *******************************   About  ************************************* */
@@ -37,13 +37,12 @@
 /* ****************************************************************************** */
 #include "arduino_picture_portal.h"
 
-
 /* ****************************************************************************** */
 /* **************************** Setup Program *********************************** */
 /* ****************************************************************************** */
 void setup(void) {
   initPicturePortal();                // Initialize the Picture Portal Display
-  
+
   
   
   // Display Logo on Screen
@@ -61,6 +60,39 @@ void setup(void) {
 
  currentcolor = RED;
  
+ for(uint16_t test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = RED;
+  }
+ 
+ 
+ for(uint16_t col = 0; col < 240; col++){
+    tft.drawPixel(col, 4,imagerowdata.imagedata[col]);
+  }
+  
+  for(uint16_t test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = BLUE;
+  }
+  
+  for(uint16_t col = 0; col < 240; col++){
+    tft.drawPixel(col, 0,imagerowdata.imagedata[col]);
+  }
+  
+  for(uint16_t test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = GREEN;
+  }
+  
+  for(uint16_t col = 0; col < 240; col++){
+    tft.drawPixel(col, 100,imagerowdata.imagedata[col]);
+  }
+  
+  for(uint16_t test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = MAGENTA;
+  }
+  
+  for(uint16_t col = 0; col < 240; col++){
+    tft.drawPixel(col, 319,imagerowdata.imagedata[col]);
+  }
+ 
 }
 
 
@@ -72,21 +104,19 @@ void loop()
 {
   delay(LOOPDELAY);
   
-  
   // Check for Data
-  if(DEBUGGING){
-    uint8_t buf;
-    if(Serial.available()) {
-      buf = Serial.read();
-      Serial.println(buf, HEX);
-    }
-  }else{
-    //if(ET.receiveData()){ //if we've received an image
-      Serial.print("Received image: ");
-      Serial.println(image_data.filename);
-    //}
+  dataReceived = receiveData();
+  if(dataReceived == 1){
+    // Received Image Data
+    dispImageRow();
+  }else if(dataReceived == 2){
+    // Received Filename Data
+  }else if(dataReceived == 3){
+    // Received Location Data
+  }else if(dataReceived == 4){
+    // Received Send/Receive Data (i.e. ACK, NACK)
+      //Serial.print("Received SEND DATA!");
   }
-  
   
   // Check for Button Pressed
   PPgetPoint();       // Get the pressed point

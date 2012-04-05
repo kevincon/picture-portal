@@ -17,35 +17,58 @@
 /* ****************************************************************************** */
 /* ****************************** Includes ************************************** */
 /* ****************************************************************************** */
+
+
 #include "Arduino.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <avr/io.h>
-
 #include "TFTLCD.h"
 #include "TouchScreen.h"
+
+
 //#include "SoftEasyTransfer.h"
 
+#ifndef _ARDUINO_PICTURE_PORTAL_H_
+#define _ARDUINO_PICTURE_PORTAL_H_
 
 /* ****************************************************************************** */
 /* ********************   Configuration Definitions  **************************** */
 /* ****************************************************************************** */
-#define LOOPDELAY 3                        // Define the Loop Delay value
+#define LOOPDELAY 10                        // Define the Loop Delay value
 
 #define USBBAUD 9600                         // USBCommunication Baud Rate
 #define SERIAL_REQUEST_IMAGE_BYTE   0x1B     // Communication Request Image Byte
 #define IMAGE_MAX_FILENAME_LENGTH   30
+#define IMAGE_LOCATION_LENGTH   30
 
-//EasyTransfer ET;
+char filename[IMAGE_MAX_FILENAME_LENGTH];
+char location[IMAGE_LOCATION_LENGTH];
 
-struct pp_image{
-  //int frame[IMAGE_WIDTH][IMAGE_HEIGHT];
-  char filename[IMAGE_MAX_FILENAME_LENGTH]; 
+struct IMAGE_ROW_DATA_STRUCTURE{
+  uint16_t row;
+  uint16_t imagedata[240];
 };
 
-//this global var will hold data about the current image
-pp_image image_data;
+//give a name to the group of data
+IMAGE_ROW_DATA_STRUCTURE imagerowdata;
+
+
+char command;
+char dataReceived;
+
+#define H1 0xA1
+#define H2 0xB2
+#define H3 0xC3
+
+
+#define NEXT_IMAGE 0x17
+#define PREVIOUS_IMAGE 0x16
+#define ACK 0x06
+#define NACK 0x15
+
+#define details(name) (byte*)&name,sizeof(name)
 
 
 
@@ -114,6 +137,9 @@ boolean newPoint;
 int oldcolor, currentcolor;
 
 
+#include "ppSerial.h"
+
+
 /* ****************************************************************************** */
 /* ***************************   System Functions  ****************************** */
 /* ****************************************************************************** */
@@ -122,7 +148,9 @@ int oldcolor, currentcolor;
 // Picture Portal Initialization Function
 void initPicturePortal(){
   Serial.begin(USBBAUD);                     // Initialize Serial Communication with computer
-  //ET.begin(details(image_data), &Serial);    // Initialize Easy-Transfer
+  initppSerial();
+  
+  //details(&image_data));          // Initialize Picture Portal Transfer Protocol
   tft.reset();                               // Reset the Display Interface
   tft.initDisplay();                         // Initialize the Display
   tft.fillScreen(BLACK);                     // Fill the Display with black
@@ -159,3 +187,20 @@ void PPgetPoint(void){
     newPoint = false;
   }
 }
+
+// Picture Portal Display Image Row Function
+void dispImageRow(void){
+  // USB CABLE AT TOP
+  // X is from Left to Right
+  // Y is from Top to Bottom
+  uint16_t rownum = imagerowdata.row;
+  if(rownum >= 320 || rownum < 0){
+     return; 
+  }
+  // Loop through and update
+  for(uint16_t col = 0; col < 240; col++){
+    tft.drawPixel(col, rownum,imagerowdata.imagedata[col]);
+  }
+}
+
+#endif
