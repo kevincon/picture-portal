@@ -6,7 +6,23 @@
 
 #include "serialcomm.h"
 #include "picture-portal.h"
-#include <sys/filio.h>
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>  /* String function definitions */
+#include <unistd.h>  /* UNIX standard function definitions */
+#include <fcntl.h>   /* File control definitions */
+#include <errno.h>   /* Error number definitions */
+#include <termios.h> /* POSIX terminal control definitions */
+#include <stdint.h>
+#include <asm/ioctls.h>
+
+
+#define H1 0xA1
+#define H2 0xB2
+#define H3 0xC3
 
 char temp;
 char Headerone;
@@ -67,60 +83,73 @@ void sendNACK(void){
 
 /*
  * Read 1 byte from serial, store in dest
- * Return number of bytes available in serial buffer
+ * Return number of bytes read
  */
 char read_bytes(uint8_t *dest) {
 	char val = read(serial_fd, dest, 1);
 	if (val >= 0) //include -1 for "resource temporarily unavailable"		
-		return val;
+		return 1;
 	else {
-		return NULL;
+		return 0;
 	}
 }
 
 
-
-
+/*
+ * Returns the number of bytes available in the buffer
+ */
+int available(void) {
+	int bytes;
+	ioctl(serial_fd, FIONREAD, &bytes);
+	return bytes;
+}
 
 
 /* 
  * Receives the data
- *
+ */
 char receiveData(void){
-    char readval;
+    uint8_t readval;
+    char bytesread;
+    int i;
     if(rx_type == 0){
     // Haven't found data header yet
-    do{
-        if(readval == Headerone){
-            // Found H1
-            break;
-        }
-    
-    }while(read_bytes(&readval) != NULL);
-    if(Serial.available() >= 3){
-      // Found enough bytes for the header
-      while(Serial.read() != H1){
-        // Found first byte
-        if(Serial.available() < 2){
+    if(available() > 3){
+	// Found enough bytes for the header
+	bytesread = read_bytes(&readval);
+	//printf("Read val = %x\n",readval);
+	//printf("looking for header 1 = %x\n",H1);
+	//printf("Enough bytes in header %d\n",available());
+      while(readval != H1){
+        // Exits if found first byte or not enough bytes
+        if(available() < 3){
+	  printf("Too few in buffer\n");
           return 0;
         }
+	bytesread = read_bytes(&readval);
       }
-      if(Serial.read() == H2){
-        if(Serial.read() == H3){
+      //printf("FOUND HEADER \n");
+      bytesread = read_bytes(&readval);
+      if(readval == H2){
+	bytesread = read_bytes(&readval);
+        if(readval == H3){
           // Found header, next byte is the packet type
-          rx_type = Serial.read();
+	  printf("FOUND HEADER!!!\n");
+	  bytesread = read_bytes(&rx_type);
+	  printf("Packettype = %x\n",rx_type);
           if(rx_type != 0xAA && rx_type != 0xBB && rx_type != 0xCC && rx_type != 0xDD){
             // Wrong Packet Type
-            Serial.write(rx_type);
+	    printf("Wrong packet type \n");
             rx_type = 0;
             return 0;
           }
+	  printf("Found Correct packet \n");
           // Otherwise, found correct packet and can now read in the rest of the data
         }
       }
     }
   }
-  
+  /*
   if(rx_type == 0xAA){
     // Found Image Row Packet, read in data
       while(Serial.available() && rx_index<=imagerowpacketsize){
@@ -220,16 +249,19 @@ char receiveData(void){
           return 0;
         }
       }
-  }else if(rx_type == 0xDD){
+*/
+  if(rx_type == 0xDD){
     // Found Send Packet, read in data
-      while(Serial.available() && rx_index<=sendpacketsize){
-        rx_buf_send[rx_index++] = Serial.read();
+	printf("Found SEND PACKET!\n");
+      while(available()>0 && rx_index<=sendpacketsize){
+	bytesread = read_bytes(&readval);
+        rx_buf_send[rx_index++] = readval;
       }
       
       if(sendpacketsize == (rx_index - 1)){
         // Received the entire message, now check checksum
         receivedCS = rx_type;        
-        for(int i = 0; i < sendpacketsize; i++){
+        for(i = 0; i < sendpacketsize; i++){
           receivedCS^=rx_buf_send[i];
         }
         
@@ -240,7 +272,8 @@ char receiveData(void){
           rx_index = 0;
           
           // SEND POSITIVE ACKNOWLEDGEMENT
-          sendACK();
+	  //printf("GOT THE PACKET CORRECTLY!\n");
+          //sendACK();
           
           return 4;
         }else{
@@ -249,12 +282,11 @@ char receiveData(void){
           rx_index = 0;
           
           // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendNACK();
+	  //printf("DIDN'T GET THE PACKET CORRECTLY\n");
+          //sendNACK();
           return 0;
         }
       }
   }
   return 0;
 }
-#endif
-*/

@@ -9,11 +9,11 @@
 
 PROGN := picture-portal
 
-CC := clang
+CC := gcc
 
 CFLAGS := -Wall -g #-m32 -lpthread
 
-PSOURCES := picture-portal.c linkedlist.c serialcomm.c
+PSOURCES := picture-portal.c linkedlist.c serialcomm.c portcomm.c
 
 all: p1
 

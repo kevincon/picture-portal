@@ -7,9 +7,9 @@
 #include "picture-portal.h"
 #include "linkedlist.h"     /* Linked List Implementation */
 #include "serialcomm.h"
+#include "portcomm.h"
 
 char *serial_path;
-
 FILE * image_fd;
 int image_index = 0;
 int num_images = 0;
@@ -123,26 +123,49 @@ void close_image() {
 }
 
 int main(int argc, char *argv[]) {
+
+  char test;
   if (argc > 1) {
     serial_path = argv[1];
   } else {
     serial_path = DEFAULT_SERIAL_PORT;
   }
   
+  initppSerial();
   open_port();
+
+  start_server(PORT_NUM);
   
   //node * test = (node*) malloc(sizeof(node));
   //test->filename = "test.jpg";
   //char test[50] = "test.jpg";
   //add(test);
-  find_images();
+  //find_images();
   while(1) {
+     if(receiveData()){
+	printf("WHAAT!?!?\n");
+     }
+
+	//if(available()){
+	//test = read_byte();
+	//printf("%c\n",test);
+     //}
+     //test = read_byte();
+     // if(test>0){
+//	printf("%c\n",test);
+    /*
+    if(receiveData()){
+	printf("Got into here");
+    }
+*/
+/*
     if(read_byte() == 0x1B) {
       //if(open_image() <= 0)
         //continue;
       //send_image();
       //close_image();
     }
+*/
     //TODO listen over internet for a new image
     
     //TODO if image received, add to list of images and send to arduino immediately
