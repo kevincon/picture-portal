@@ -1,6 +1,8 @@
 package com.pictureportal.app;
 
 import java.io.File;
+import java.io.*;
+import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -15,6 +17,7 @@ import android.view.View;
 import android.widget.Toast;
 
 public class AndroidActivity extends Activity {
+	private static String server = "165.123.233.111"; //"pp.timtext.com";
 	
 	private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 	private Uri fileUri;
@@ -53,6 +56,18 @@ public class AndroidActivity extends Activity {
             if (resultCode == RESULT_OK) {
                 // Image captured and saved to fileUri specified in the Intent
             	//TODO need to move on to sending image to server
+            	try {
+            		//char buf[] = {0xAA};
+            		Socket serverSocket = new Socket(server, 1337);
+            		//PrintWriter outToServer = new PrintWriter(serverSocket.getOutputStream(),true);
+            		OutputStream outToServer = serverSocket.getOutputStream();
+            		outToServer.write(0xAB);
+            		serverSocket.close();
+            	} catch (Exception e) {
+            		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
+            		return;
+            	}
+            	
                 //Toast.makeText(this, "Image saved to:\n" +
                          //data.getData(), Toast.LENGTH_SHORT).show();
             } else if (resultCode == RESULT_CANCELED) {

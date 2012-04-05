@@ -13,6 +13,7 @@
 
 #define DEFAULT_SERIAL_PORT         "/dev/ttyACM0"
 #define IMAGE_MAX_FILENAME_LENGTH   30
+#define PORT_NUM 1337
 
 int serial_fd;
 

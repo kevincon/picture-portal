@@ -65,9 +65,9 @@ uint8_t rx_index;               // Received data index
 uint8_t rx_type;                // Recieved packet type
 
 
-#define H1 0xA1
-#define H2 0xB2
-#define H3 0xC3
+//#define H1 0xA1
+//#define H2 0xB2
+//#define H3 0xC3
 
 
 #define USBBAUD 9600                         // USBCommunication Baud Rate
@@ -103,6 +103,8 @@ char dataReceived;
 void initppSerial(void);
 void sendACK(void);
 void sendNACK(void);
+char read_bytes(uint8_t *dest);
+int available(void);
 char receiveData(void);
 
 #endif
