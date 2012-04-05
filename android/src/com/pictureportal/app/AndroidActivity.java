@@ -57,12 +57,13 @@ public class AndroidActivity extends Activity {
                 // Image captured and saved to fileUri specified in the Intent
             	//TODO need to move on to sending image to server
             	try {
+            		char buf = 0xAB;
             		Socket serverSocket = new Socket(server, 1337);
             		PrintWriter outToServer = new PrintWriter(serverSocket.getOutputStream(),true);
-            		outToServer.println("sending you a picture!");
+            		outToServer.print(buf);
             		serverSocket.close();
             	} catch (Exception e) {
-            		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
+            		Toast.makeText(this, "Could not connect to server: " + e.toString() + ".\n", Toast.LENGTH_SHORT).show();
             		return;
             	}
             	
