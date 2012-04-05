@@ -53,6 +53,7 @@ void initppSerial(void){
   * Sends an Positive Acknowledgement of received data 
   */
 void sendACK(void){
+    printf("kcon\n");
     CS = 0xDD;
     write(serial_fd, &Headerone, 1);      // HEADER
     write(serial_fd, &Headertwo, 1);      // HEADER

@@ -130,19 +130,20 @@ int main(int argc, char *argv[]) {
   } else {
     serial_path = DEFAULT_SERIAL_PORT;
   }
-  
-  initppSerial();
   open_port();
-
-  init_portcomm(PORT_NUM);
+  sleep(4);
+  initppSerial();
   
+  init_portcomm(PORT_NUM);
+  //sendACK();
+  //sendNACK();
   //node * test = (node*) malloc(sizeof(node));
   //test->filename = "test.jpg";
   //char test[50] = "test.jpg";
   //add(test);
   //find_images();
-  while(1) {
-     receive_portcomm();
+  //sendACK();
+  while (receive_portcomm() == 0) {
      if(receiveData()){
 	printf("WHAAT!?!?\n");
      }
@@ -171,7 +172,9 @@ int main(int argc, char *argv[]) {
     
     //TODO if image received, add to list of images and send to arduino immediately
   }
-  
+ 
+  sendACK();
+  //receiveData();
   close(serial_fd);
   close_portcomm();
   

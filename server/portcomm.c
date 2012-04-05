@@ -16,6 +16,7 @@ http://www.binarii.com/files/papers/c_sockets.txt
 #include <string.h>
 
 #include "portcomm.h"
+#include "serialcomm.h"
 
 // structs to represent the server and client
 struct sockaddr_in server_addr,client_addr;
@@ -23,7 +24,7 @@ int sock; // socket descriptor
 int sin_size;
 int fd;
 // buffer to read data into
-char recv_data[1024];
+uint8_t recv_data;
 
 
 void init_portcomm(int PORT_NUMBER){
@@ -76,20 +77,23 @@ void init_portcomm(int PORT_NUMBER){
 
 int receive_portcomm(){
       // 5. recv: read incoming message into buffer
-      int bytes_received = recv(fd,recv_data,1024,0);
+      int bytes_received = recv(fd,&recv_data,1,0);
       // null-terminate the string
-      recv_data[bytes_received] = '\0';
+      //recv_data[bytes_received] = '\0';
+      printf("Server received num bytes: %d\n", bytes_received);
+      printf("Server received byte: %x\n", recv_data);
 
-      printf("Server received message: %s\n", recv_data);
-      
+      //sendACK();
+           
       // echo back the message to the client
-      char *send_data = "Thank you!\n";
+      //char *send_data = "Thank you!\n";
 
       // 6. send: send a message over the socket
-      send(fd, send_data, strlen(send_data), 0);
+      //send(fd, send_data, strlen(send_data), 0);
 
-      printf("Server sent message: %s\n", send_data);
-  return 0;
+      //printf("Server sent message: %s\n", send_data);
+      //close_portcomm();
+  return bytes_received;
 }
 
 void close_portcomm(void){
