@@ -36,6 +36,7 @@
 /* ****************************** Includes ************************************** */
 /* ****************************************************************************** */
 #include "arduino_picture_portal.h"
+char alternate;
 
 /* ****************************************************************************** */
 /* **************************** Setup Program *********************************** */
@@ -43,23 +44,23 @@
 void setup(void) {
   initPicturePortal();                // Initialize the Picture Portal Display
 
-  
+  alternate = 0;
   
   // Display Logo on Screen
   
   
-  
+  /*
   tft.fillRect(0, 0, BOXSIZE, BOXSIZE, RED);
   tft.fillRect(5, 5, BOXSIZE, BOXSIZE, YELLOW);
   tft.fillRect(10, 10, BOXSIZE, BOXSIZE, GREEN);
   tft.fillRect(15, 15, BOXSIZE, BOXSIZE, CYAN);
   tft.fillRect(20, 20, BOXSIZE, BOXSIZE, BLUE);
   tft.fillRect(25, 25, BOXSIZE, BOXSIZE, MAGENTA);
-
+*/
  
 
  currentcolor = RED;
- 
+ /*
  for(uint16_t test = 0; test < 240; test++){
     imagerowdata.imagedata[test] = RED;
   }
@@ -92,7 +93,7 @@ void setup(void) {
   for(uint16_t col = 0; col < 240; col++){
     tft.drawPixel(col, 319,imagerowdata.imagedata[col]);
   }
- 
+ */
 }
 
 
@@ -123,6 +124,13 @@ void loop()
   if (newPoint){
     if (((p.y-PENRADIUS) > BOXSIZE) && ((p.y+PENRADIUS) < tft.height())) {
       tft.fillCircle(p.x, p.y, PENRADIUS, currentcolor);
+      if(alternate){
+        sendACK();
+        alternate = 0;
+      }else{
+        sendNACK();
+        alternate = 1;
+      }
     }
   }
   

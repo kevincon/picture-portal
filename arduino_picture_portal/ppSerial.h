@@ -165,7 +165,7 @@ void requestNext(){
   Serial.write(CS);     // Checksum
 }
 
-/* Receives the struct data */
+/* Receives the data */
 char receiveData(void){
   if(rx_type == 0){
     // Haven't found data header yet
@@ -183,7 +183,6 @@ char receiveData(void){
           rx_type = Serial.read();
           if(rx_type != 0xAA && rx_type != 0xBB && rx_type != 0xCC && rx_type != 0xDD){
             // Wrong Packet Type
-            Serial.write(rx_type);
             rx_type = 0;
             return 0;
           }
