@@ -54,11 +54,11 @@ char alternate;
 
 /************************* SERIAL *************************/
 // PACKET STRUCTURE = (P1) + (P2) + (P3) + (PACKET TYPE) + (DATA) + (CHECKSUM)
-#define USBBAUD 115200                             // USBCommunication Baud Rate
+#define USBBAUD 57600                             // USBCommunication Baud Rate
 #define IMAGE_LOCATION_LENGTH 30                   // Size of Image Location Data in bytes
 char location[IMAGE_LOCATION_LENGTH];              // Char array to hold Image Location Data
 struct IMAGE_ROW_DATA_STRUCTURE{                   // Struct for holding Image Row Data
-  uint16_t row;             // Row numbers
+  uint8_t row;                 // Row numbers
   uint16_t imagedata[240];  // Row Data
 };
 IMAGE_ROW_DATA_STRUCTURE imagerowdata;             // Struct
@@ -74,14 +74,14 @@ IMAGE_ROW_DATA_STRUCTURE imagerowdata;             // Struct
 #define NACK 0x15                                  // Negative Acknowledgement Byte
 uint8_t * rx_buf_imagerow;                         // Temporary storage for received image data
 uint8_t * rx_buf_location;                         // Temporary storage for received location data
-uint8_t tempChar;                                     // Temporary Char Data
-uint8_t commandChar;                                  // Command Char Data
+uint8_t tempChar;                                  // Temporary Char Data
+uint8_t commandChar;                               // Command Char Data
 uint8_t dataTypeReceived;                          // Data Type (Image Data, Location Data, Command Data)
-uint8_t dataReturn;                                   // Data Read Correctly (1,2,3) or Not yet (0)
-uint8_t rx_index;                                  // Received data index
+uint8_t dataReturn;                                // Data Read Correctly (1,2,3) or Not yet (0)
+uint16_t rx_index;                                  // Received data index
 uint8_t CS;                                        // Checksum data
 uint8_t receivedCS;                                // Received Checksum
-#define IMAGE_ROW_PACKET_SIZE 482                  // Image+Row Struct Size in Bytes
+#define IMAGE_ROW_PACKET_SIZE 481                  // Image+Row Struct Size in Bytes
 
 /************************* DISPLAY *************************/
 // Display Shield Pinout
@@ -141,13 +141,13 @@ void PPgetPoint(void){
 
 // USB Cable At Top = X is from Left to Right, Y is from Top to Bottom
 void dispImageRow(void){
-  uint16_t rownum = imagerowdata.row;
-  if(rownum >= 320 || rownum < 0){
+  uint16_t rownum = (uint16_t)imagerowdata.row;
+  if(rownum > 240 || rownum < 0){
      return; 
   }
   // Loop through and update
-  for(uint16_t col = 0; col < 240; col++){
-    tft.drawPixel(col, rownum,imagerowdata.imagedata[col]);
+  for(uint8_t col = 0; col < 240; col++){
+    tft.drawPixel((uint16_t)col, rownum,imagerowdata.imagedata[col]);
   }
 }
 
@@ -192,6 +192,7 @@ char receiveData(void){
         if(Serial.read() == P3){
           // Found entire preamble, next byte is the packet data size
           dataTypeReceived = Serial.read();
+          Serial.println("Found Header");
         }
       }
     }
@@ -199,8 +200,43 @@ char receiveData(void){
   
   if(dataTypeReceived == IMAGE_ROW_PACKET_TYPE){
     // Found Image+Row Packet, read in data
-    
-    
+    Serial.println("Getting Data");
+    while(Serial.available() && rx_index<=IMAGE_ROW_PACKET_SIZE){
+        rx_buf_imagerow[rx_index++] = Serial.read();
+      }
+      Serial.print("Image row size = ");
+      Serial.println(IMAGE_ROW_PACKET_SIZE);
+      Serial.print("Index = ");
+      Serial.println(rx_index);
+      
+      if(IMAGE_ROW_PACKET_SIZE <= (rx_index - 1)){
+        // Received the entire message, now check checksum
+        Serial.println("Checking checksum");
+        receivedCS = dataTypeReceived;
+        for(int i = 0; i < IMAGE_ROW_PACKET_SIZE; i++){
+          receivedCS^=rx_buf_imagerow[i];
+        }
+        
+        if(receivedCS == rx_buf_imagerow[rx_index-1]){
+          // Found correct packet!
+          memcpy(&imagerowdata, rx_buf_imagerow, IMAGE_ROW_PACKET_SIZE);
+          dataTypeReceived = 0;
+          rx_index = 0;
+          
+          // SEND POSITIVE ACKNOWLEDGEMENT
+          sendCommand(ACK);
+          
+          return 1;
+        }else{
+          // Incorrect packet!
+          dataTypeReceived = 0;
+          rx_index = 0;
+          
+          // SEND NEGATIVE ACKNOWLEDGEMENT
+          sendCommand(NACK);
+          return 0;
+        }
+      }
   }else if(dataTypeReceived == LOCATION_PACKET_TYPE){
     // Found Location Packet, read in data
     
@@ -215,12 +251,12 @@ char receiveData(void){
     rx_index = 0;
     if(receivedCS == CS){
       // Correct Packet Found
-      Serial.println("Correct Packet Found");
+      //Serial.println("Correct Packet Found");
       sendCommand(ACK);
       return 3;
     }else{
       // Incorrect Packet Found
-      Serial.println("Incorrect Packet Found");
+      //Serial.println("Incorrect Packet Found");
       sendCommand(NACK);
       return 0;
     }
@@ -317,7 +353,8 @@ char receiveData(void){
 /* **************************** Setup Program *********************************** */
 /* ****************************************************************************** */
 void setup(void) {
-  Serial.begin(USBBAUD);                                        // Initialize Serial Communication with computer
+  Serial.begin(USBBAUD);   // Initialize Serial Communication with computer
+  Serial.println("GOT HERE");
   rx_buf_imagerow = (uint8_t*) malloc(IMAGE_ROW_PACKET_SIZE);   // Allocate Image+Row Struct Buffer
   rx_buf_location = (uint8_t*) malloc(IMAGE_LOCATION_LENGTH);   // Allocate Location Buffer
   dataTypeReceived = 0;                                         // Reset Data Type Received
@@ -330,14 +367,59 @@ void setup(void) {
   // Set Display Width and Height
   WIDTH = tft.width();
   HEIGHT = tft.height();
-
-  alternate = 0;
+  
+  // TESTING
+  alternate = 0;  
+  imagerowdata.row = 200;
 
  
- for(uint16_t test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = RED;
+ for(uint8_t test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = 0x07E0;
   }
  dispImageRow();
+ /*
+ imagerowdata.row = 241;
+ for(char test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = 0x07E0;
+  }
+ dispImageRow();
+ 
+ imagerowdata.row = 242;
+ for(char test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = 0x07C0;
+  }
+ dispImageRow();
+ 
+ imagerowdata.row = 243;
+ for(char test = 0; test < 240; test++){
+    imagerowdata.imagedata[test] = 0x07C0;
+  }
+ dispImageRow();
+ */
+ 
+ char hic = 0x01;
+ char lowc = 0x01;
+ char cstest = 0xAA;
+ 
+ Serial.write(0xA1);
+ Serial.write(0xB2);
+ Serial.write(0xC3);
+ Serial.write(0xAA);
+ Serial.write(imagerowdata.row);
+ cstest ^= imagerowdata.row;
+ for(uint8_t test2 = 0; test2 < 240; test2++){
+   Serial.write(hic);
+   Serial.write(lowc);
+   cstest ^= hic;
+   cstest ^= lowc;
+   hic += 1;
+   lowc += 1;
+  }
+  
+  Serial.write(cstest);
+  
+ 
+ 
 }
 
 
@@ -346,12 +428,12 @@ void setup(void) {
 /* ****************************************************************************** */
 void loop()
 {
-  //delay(LOOPDELAY);
+  delay(LOOPDELAY);
   
   // Check for Data
   dataReturn = receiveData();
   if(dataReturn == 1){       // Received Image Data
-    //dispImageRow();
+    dispImageRow();
   }else if(dataReturn == 2){ // Received Location Data
   
   }else if(dataReturn == 3){ // Received Command Data
