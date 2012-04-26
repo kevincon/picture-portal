@@ -164,7 +164,7 @@ void send_data(uint8_t *data, uint8_t type) {
 		//printf("byte %d: %d\n", j, buf);
 	  struct timespec tim;
     tim.tv_sec = 0;
-    tim.tv_nsec = 500000;
+    tim.tv_nsec = 1000000;
     nanosleep(&tim, NULL);
 	}
 	//lastly, write checksum
@@ -327,7 +327,7 @@ int main(int argc,char **argv) {
 	} else {
 		serial_path = (char *) DEFAULT_SERIAL_PORT;
 	}
-	/*
+	
   printf("Opening serial port: %s\n", serial_path);
   open_port();  
   
@@ -335,13 +335,13 @@ int main(int argc,char **argv) {
 	send_image("chegg.jpg");	
 	
 	close_port();
-	*/
-  //TODO test Teddy
 	
+  //TODO test Teddy
+	/*
 	init_network(1337);
   
   receive_network();
   
   close_network();
-	
+	*/
 }
