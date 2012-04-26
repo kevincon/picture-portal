@@ -82,6 +82,7 @@ uint16_t rx_index;                                  // Received data index
 uint8_t CS;                                        // Checksum data
 uint8_t receivedCS;                                // Received Checksum
 #define IMAGE_ROW_PACKET_SIZE 482                  // Image+Row Struct Size in Bytes
+boolean canPress = true;
 char strtest[5] = {'H','e','r','e','!'};
 String tester;
 
@@ -100,6 +101,7 @@ TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, 0);     // Display Object
 #define MAGENTA 0xF81F                             // Screen MAGENTA Color
 #define YELLOW 0xFFE0                              // Screen YELLOW Color
 #define WHITE 0xFFFF                               // Screen WHITE Color
+#define GRAY 0xA514                                // Screen GRAY Color
 int WIDTH;                                         // Display Width
 int HEIGHT;                                        // Display Height
 #define IMAGE_WIDTH 240                            // Image Width
@@ -146,6 +148,16 @@ void dispImageRow(void){
   uint16_t rownum = (uint16_t)imagerowdata.row;
   if(rownum > 240 || rownum < 0){
      return; 
+  }
+  if(rownum > 0 && rownum < 238){
+    // Prevent user from pressing buttons
+    canPress = false;
+    // GRAY OUT BUTTONS
+  }
+  if(rownum > 238){
+    // User can press buttons again
+    canPress = true;
+    // UN-GRAY OUT BUTTONS
   }
   // Loop through and update
   for(uint8_t col = 0; col < 240; col++){
@@ -261,13 +273,11 @@ char receiveData(void){
     rx_index = 0;
     if(receivedCS == CS){
       // Correct Packet Found
-      //Serial.println("Correct Packet Found");
-      sendCommand(ACK);
+      //sendCommand(ACK);
       return 3;
     }else{
       // Incorrect Packet Found
-      //Serial.println("Incorrect Packet Found");
-      sendCommand(NACK);
+      //sendCommand(NACK);
       return 0;
     }
   }else{
@@ -277,87 +287,6 @@ char receiveData(void){
   return 0;
 }  
           
-      
-    
-    
-    
-
-  
-  /*
-  
- 
-  
-  if(rx_type == 0xAA){
-    // Found Image Row Packet, read in data
-      while(Serial.available() && rx_index<=imagerowpacketsize){
-        rx_buf_imagerow[rx_index++] = Serial.read();
-      }
-      
-      if(imagerowpacketsize == (rx_index - 1)){
-        // Received the entire message, now check checksum
-        receivedCS = rx_type;
-        for(int i = 0; i < imagerowpacketsize; i++){
-          receivedCS^=rx_buf_imagerow[i];
-        }
-        
-        if(receivedCS == rx_buf_imagerow[rx_index-1]){
-          // Found correct packet!
-          memcpy(&imagerowdata, rx_buf_imagerow, imagerowpacketsize);
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND POSITIVE ACKNOWLEDGEMENT
-          sendACK();
-          
-          return 1;
-        }else{
-          // Incorrect packet!
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendNACK();
-          return 0;
-        }
-      }
-  }else if(rx_type == 0xCC){
-    // Found Location Packet, read in data
-      while(Serial.available() && rx_index<=locationpacketsize){
-        rx_buf_location[rx_index++] = Serial.read();
-      }
-      
-      if(locationpacketsize == (rx_index - 1)){
-        // Received the entire message, now check checksum
-        receivedCS = rx_type;
-        for(int i = 0; i < locationpacketsize; i++){
-          receivedCS^=rx_buf_location[i];
-        }
-        
-        if(receivedCS == rx_buf_location[rx_index-1]){
-          // Found correct packet!
-          memcpy(&location, rx_buf_location, locationpacketsize);
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND POSITIVE ACKNOWLEDGEMENT
-          sendACK();
-          
-          return 3;
-        }else{
-          // Incorrect packet!
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendNACK();
-          return 0;
-        }
-      }
-  }
-  
-  */
-
-
 
 /* ****************************************************************************** */
 /* **************************** Setup Program *********************************** */
@@ -377,61 +306,24 @@ void setup(void) {
   WIDTH = tft.width();
   HEIGHT = tft.height();
   
-  // TESTING
-  alternate = 0;  
-  imagerowdata.row = 200;
-  //Serial.print("Size of Row Packet = ");
-  //Serial.println(sizeof(rowpacket));
-
- /*
- for(uint8_t test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07E0;
-  }
- dispImageRow();
- */
- 
- /*
- imagerowdata.row = 241;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07E0;
-  }
- dispImageRow();
- 
- imagerowdata.row = 242;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07C0;
-  }
- dispImageRow();
- 
- imagerowdata.row = 243;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07C0;
-  }
- dispImageRow();
- */
- 
- /*
- char hic = 0x01;
- char lowc = 0x01;
- char cstest = 0xAA;
- 
- Serial.write(0xA1);
- Serial.write(0xB2);
- Serial.write(0xC3);
- Serial.write(0xAA);
- Serial.write(imagerowdata.row);
- cstest ^= imagerowdata.row;
- for(uint8_t test2 = 0; test2 < 240; test2++){
-   Serial.write(hic);
-   Serial.write(lowc);
-   cstest ^= hic;
-   cstest ^= lowc;
-   hic += 1;
-   lowc += 1;
-  }
+  // White Background for Location Data
+  tft.fillRect(4,244,232, 32, WHITE);
   
-  Serial.write(cstest);
-  */
+  // White Background for Buttons
+  tft.fillRect(4,280,114, 36, WHITE);
+  tft.fillRect(122,280,114,36,WHITE);
+  
+
+
+  
+  // Buttons
+  
+
+  
+  
+
+
+ 
  
  
 }
