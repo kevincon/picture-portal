@@ -54,14 +54,14 @@ char alternate;
 
 /************************* SERIAL *************************/
 // PACKET STRUCTURE = (P1) + (P2) + (P3) + (PACKET TYPE) + (DATA) + (CHECKSUM)
-#define USBBAUD 57600                             // USBCommunication Baud Rate
+#define USBBAUD 38400                             // USBCommunication Baud Rate            // 38400 at 500us works well
 #define IMAGE_LOCATION_LENGTH 30                   // Size of Image Location Data in bytes
 char location[IMAGE_LOCATION_LENGTH];              // Char array to hold Image Location Data
-struct IMAGE_ROW_DATA_STRUCTURE{                   // Struct for holding Image Row Data
-  uint8_t row;                 // Row numbers
+typedef struct{                   // Struct for holding Image Row Data
+  uint16_t row;                 // Row numbers
   uint16_t imagedata[240];  // Row Data
-};
-IMAGE_ROW_DATA_STRUCTURE imagerowdata;             // Struct
+} rowpacket;
+rowpacket imagerowdata;             // Struct
 #define P1 0xA1                                    // Preamble Byte 1
 #define P2 0xB2                                    // Preamble Byte 2
 #define P3 0xC3                                    // Preamble Byte 3
@@ -81,7 +81,9 @@ uint8_t dataReturn;                                // Data Read Correctly (1,2,3
 uint16_t rx_index;                                  // Received data index
 uint8_t CS;                                        // Checksum data
 uint8_t receivedCS;                                // Received Checksum
-#define IMAGE_ROW_PACKET_SIZE 481                  // Image+Row Struct Size in Bytes
+#define IMAGE_ROW_PACKET_SIZE 482                  // Image+Row Struct Size in Bytes
+char strtest[5] = {'H','e','r','e','!'};
+String tester;
 
 /************************* DISPLAY *************************/
 // Display Shield Pinout
@@ -179,11 +181,11 @@ char receiveData(void){
   // Check if found Preamble already
   if(dataTypeReceived == 0){
     // Haven't found data Preamble yet
-    if(Serial.available() > 3){
+    if(Serial.available() >= 3){
       // Enough bytes present for the Preamble
       while(Serial.read() != P1){
         // Check if too few bytes present in buffer
-        if(Serial.available() < 3){
+        if(Serial.available() < 2){
           return 0;
         }
       }
@@ -192,7 +194,9 @@ char receiveData(void){
         if(Serial.read() == P3){
           // Found entire preamble, next byte is the packet data size
           dataTypeReceived = Serial.read();
-          Serial.println("Found Header");
+          //Serial.println("Found Header");
+          //tft.fillRect(160,160,BOXSIZE, BOXSIZE,BLUE);
+          //tft.drawString(300, 100, strtest, BLUE, 2);
         }
       }
     }
@@ -200,18 +204,24 @@ char receiveData(void){
   
   if(dataTypeReceived == IMAGE_ROW_PACKET_TYPE){
     // Found Image+Row Packet, read in data
-    Serial.println("Getting Data");
+    //Serial.println("Getting Data");
     while(Serial.available() && rx_index<=IMAGE_ROW_PACKET_SIZE){
         rx_buf_imagerow[rx_index++] = Serial.read();
       }
-      Serial.print("Image row size = ");
-      Serial.println(IMAGE_ROW_PACKET_SIZE);
-      Serial.print("Index = ");
-      Serial.println(rx_index);
+      //Serial.print("Image row size = ");
+      //Serial.println(IMAGE_ROW_PACKET_SIZE);
+      
+      //Serial.print("Index = ");
+      //Serial.println(rx_index);
+      //tft.fillRect(300,100,40, 40,BLACK);
+      //tester = String(rx_index);
+      //tester.toCharArray(strtest, 50);
+      //tft.drawString(300, 100, strtest, BLUE, 2);
+      
       
       if(IMAGE_ROW_PACKET_SIZE <= (rx_index - 1)){
         // Received the entire message, now check checksum
-        Serial.println("Checking checksum");
+        //Serial.println("Checking checksum");
         receivedCS = dataTypeReceived;
         for(int i = 0; i < IMAGE_ROW_PACKET_SIZE; i++){
           receivedCS^=rx_buf_imagerow[i];
@@ -224,7 +234,7 @@ char receiveData(void){
           rx_index = 0;
           
           // SEND POSITIVE ACKNOWLEDGEMENT
-          sendCommand(ACK);
+          //sendCommand(ACK);
           
           return 1;
         }else{
@@ -233,7 +243,7 @@ char receiveData(void){
           rx_index = 0;
           
           // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendCommand(NACK);
+          //sendCommand(NACK);
           return 0;
         }
       }
@@ -354,7 +364,6 @@ char receiveData(void){
 /* ****************************************************************************** */
 void setup(void) {
   Serial.begin(USBBAUD);   // Initialize Serial Communication with computer
-  Serial.println("GOT HERE");
   rx_buf_imagerow = (uint8_t*) malloc(IMAGE_ROW_PACKET_SIZE);   // Allocate Image+Row Struct Buffer
   rx_buf_location = (uint8_t*) malloc(IMAGE_LOCATION_LENGTH);   // Allocate Location Buffer
   dataTypeReceived = 0;                                         // Reset Data Type Received
@@ -371,12 +380,16 @@ void setup(void) {
   // TESTING
   alternate = 0;  
   imagerowdata.row = 200;
+  //Serial.print("Size of Row Packet = ");
+  //Serial.println(sizeof(rowpacket));
 
- 
+ /*
  for(uint8_t test = 0; test < 240; test++){
     imagerowdata.imagedata[test] = 0x07E0;
   }
  dispImageRow();
+ */
+ 
  /*
  imagerowdata.row = 241;
  for(char test = 0; test < 240; test++){
@@ -397,6 +410,7 @@ void setup(void) {
  dispImageRow();
  */
  
+ /*
  char hic = 0x01;
  char lowc = 0x01;
  char cstest = 0xAA;
@@ -417,7 +431,7 @@ void setup(void) {
   }
   
   Serial.write(cstest);
-  
+  */
  
  
 }
@@ -437,12 +451,12 @@ void loop()
   }else if(dataReturn == 2){ // Received Location Data
   
   }else if(dataReturn == 3){ // Received Command Data
-      Serial.print("Received DATA!");
+      //Serial.print("Received DATA!");
       if(commandChar == ACK){
-        tft.fillRect(0,0,BOXSIZE, BOXSIZE,GREEN);
+        //tft.fillRect(0,0,BOXSIZE, BOXSIZE,GREEN);
       }
       if(commandChar == NACK){
-        tft.fillRect(0,0,BOXSIZE, BOXSIZE, RED);
+        //tft.fillRect(0,0,BOXSIZE, BOXSIZE, RED);
       }
       
   }
