@@ -102,6 +102,7 @@ TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, 0);     // Display Object
 #define YELLOW 0xFFE0                              // Screen YELLOW Color
 #define WHITE 0xFFFF                               // Screen WHITE Color
 #define GRAY 0xA514                                // Screen GRAY Color
+#define ORANGE 0xFC80                              // Screen ORANGE Color
 int WIDTH;                                         // Display Width
 int HEIGHT;                                        // Display Height
 #define IMAGE_WIDTH 240                            // Image Width
@@ -306,26 +307,24 @@ void setup(void) {
   WIDTH = tft.width();
   HEIGHT = tft.height();
   
-  // White Background for Location Data
-  tft.fillRect(4,244,232, 32, WHITE);
+  // Text Area
+  tft.fillRect(4,244,232, 32, WHITE);  // White Background
+  char picportal[15] = {'P','i','c','t','u','r','e',' ','P','o','r','t','a','l','\0'};  // "Picture Portal" Text
+  tft.drawString(40, 254, picportal, BLACK, 2);// Picture Portal Text Render
+  tft.fillCircle(25, 255, 10,BLUE);
+  tft.fillCircle(100, 104, 10,BLUE);
+  tft.fillCircle(100, 140,10,ORANGE);
   
-  // White Background for Buttons
-  tft.fillRect(4,280,114, 36, WHITE);
-  tft.fillRect(122,280,114,36,WHITE);
-  
+  // Left Button
+  tft.fillRect(4,280,114, 36, WHITE);  // White Background
+  tft.fillRect(49,292,55,10, BLACK);  // Black Bar
+  tft.fillTriangle(50,310,50,284,20,297, BLACK);  // Black Triangle
 
-
   
-  // Buttons
-  
-
-  
-  
-
-
- 
- 
- 
+  // Right Button
+  tft.fillRect(122,280,114,36,WHITE);  // White Background
+  tft.fillRect(135,292,55,10, BLACK);  // Black Bar
+  tft.fillTriangle(190,310,190,284,220,297, BLACK);  // Black Triangle 
 }
 
 
