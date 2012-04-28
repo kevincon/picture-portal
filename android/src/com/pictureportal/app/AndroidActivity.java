@@ -1,26 +1,36 @@
 package com.pictureportal.app;
 
-import java.io.File;
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 public class AndroidActivity extends Activity {
-	private static String server = "165.123.233.111"; //"pp.timtext.com";
+	private static String server;
 	
 	private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 	private Uri fileUri;
+	private static String img_path;
+	private static byte b[];
+	private static long fsize;
 	
 	public static final int MEDIA_TYPE_IMAGE = 1;
 	public static final int MEDIA_TYPE_VIDEO = 2;
@@ -34,6 +44,7 @@ public class AndroidActivity extends Activity {
     
     public void takePicture(View v) {
     	//TODO 
+    	server = ((EditText)findViewById(R.id.IP)).getText().toString();
     	// create Intent to take a picture and return control to the calling application
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
@@ -55,19 +66,62 @@ public class AndroidActivity extends Activity {
         if (requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 // Image captured and saved to fileUri specified in the Intent
-            	//TODO need to move on to sending image to server
             	try {
-            		//char buf[] = {0xAA};
             		Socket serverSocket = new Socket(server, 1337);
-            		//PrintWriter outToServer = new PrintWriter(serverSocket.getOutputStream(),true);
             		OutputStream outToServer = serverSocket.getOutputStream();
-            		outToServer.write(0xAB);
+            		int i;
+            		
+            		//send image size
+            		File file = new File(img_path);
+        			fsize = file.length();
+    				b = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(fsize).array();
+        			for(i= 0; i < 8; i++) {  
+        				outToServer.write(b[i]);
+        			}
+        			
+            		//send image
+            		FileInputStream fin; 
+            		fin = new FileInputStream(img_path); 
+            		BufferedInputStream bis = new BufferedInputStream(fin);
+            		DataInputStream dis = new DataInputStream(bis);
+            		
+        			try {          			
+            			for (i=0; i < fsize; i++) {
+            				byte buf = dis.readByte();
+            				outToServer.write(buf);
+            			}
+            		}
+            		catch(Exception e)
+            		{
+            			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
+            			return;
+            		}
+        			/*
+        			//send image location
+        			ExifInterface exif = new ExifInterface(img_path);
+        			float[] latlong = new float[2];
+        			char loc[];
+        			if(exif.getLatLong(latlong)) {  
+        				Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+        				Address addr = geocoder.getFromLocation(latlong[0], latlong[1], 1).get(0);
+        				loc = addr.getLocality().toCharArray();
+        			}
+        			else
+    			       	loc = "Universe".toCharArray();
+       				//byte loc_len = (byte)loc.length;
+        			//outToServer.write(loc_len);
+        			for (i = 0; i<loc.length; i++){
+        				//outToServer.write(loc[i]);
+        				//Log.d("sdfs","asd");
+        			}
+        			*/
+        			
             		serverSocket.close();
             	} catch (Exception e) {
             		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
             		return;
             	}
-            	
+            	Toast.makeText(this, Long.toString(fsize), Toast.LENGTH_SHORT).show();
                 //Toast.makeText(this, "Image saved to:\n" +
                          //data.getData(), Toast.LENGTH_SHORT).show();
             } else if (resultCode == RESULT_CANCELED) {
@@ -80,7 +134,43 @@ public class AndroidActivity extends Activity {
         }
     }
     
-    /** Create a file Uri for saving an image or video */
+    // Returns the contents of the file in a byte array.
+    public static byte[] getBytesFromFile(File file) throws IOException {
+        InputStream is = new FileInputStream(file);
+
+        // Get the size of the file
+        long length = file.length();
+
+        // You cannot create an array using a long type.
+        // It needs to be an int type.
+        // Before converting to an int type, check
+        // to ensure that file is not larger than Integer.MAX_VALUE.
+        if (length > Integer.MAX_VALUE) {
+            // File is too large
+        }
+
+        // Create the byte array to hold the data
+        byte[] bytes = new byte[(int)length];
+
+        // Read in the bytes
+        int offset = 0;
+        int numRead = 0;
+        while (offset < bytes.length
+               && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
+            offset += numRead;
+        }
+
+        // Ensure all the bytes have been read in
+        if (offset < bytes.length) {
+            throw new IOException("Could not completely read file " + file.getName());
+        }
+
+        // Close the input stream and return bytes
+        is.close();
+        return bytes;
+    }
+	
+	/** Create a file Uri for saving an image or video */
     private static Uri getOutputMediaFileUri(int type){
     	  File f = getOutputMediaFile(type);
     	  if (f == null) {
@@ -116,8 +206,8 @@ public class AndroidActivity extends Activity {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
         if (type == MEDIA_TYPE_IMAGE){
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-            "IMG_"+ timeStamp + ".jpg");
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg");
+            img_path = mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg";
         } else {
             return null;
         }
