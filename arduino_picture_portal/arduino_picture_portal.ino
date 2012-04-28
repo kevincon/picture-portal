@@ -25,9 +25,6 @@
 /* ****************************************************************************** */
 // Set up Serial communication between computer server and arduino
 // Display startup logo on LCD
-// Display controls on screen
-// Display image on screen
-// Swipe motion to switch images
 
 
 /* ****************************************************************************** */
@@ -46,7 +43,7 @@
 /* ********************   Configuration Definitions  **************************** */
 /* ****************************************************************************** */
 /************************** MISC **************************/
-#define LOOPDELAY 5                               // Define the Loop Delay value
+#define LOOPDELAY 3                               // Define the Loop Delay value
 #define BOXSIZE 40
 #define PENRADIUS 4
 char alternate;
@@ -82,8 +79,11 @@ uint16_t rx_index;                                  // Received data index
 uint8_t CS;                                        // Checksum data
 uint8_t receivedCS;                                // Received Checksum
 #define IMAGE_ROW_PACKET_SIZE 482                  // Image+Row Struct Size in Bytes
+boolean canPress = true;
 char strtest[5] = {'H','e','r','e','!'};
 String tester;
+uint16_t rx_counter = 0;                           // Rx Counter
+boolean alternator = false;
 
 /************************* DISPLAY *************************/
 // Display Shield Pinout
@@ -100,6 +100,8 @@ TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, 0);     // Display Object
 #define MAGENTA 0xF81F                             // Screen MAGENTA Color
 #define YELLOW 0xFFE0                              // Screen YELLOW Color
 #define WHITE 0xFFFF                               // Screen WHITE Color
+#define GRAY 0xA514                                // Screen GRAY Color
+#define ORANGE 0xFC80                              // Screen ORANGE Color
 int WIDTH;                                         // Display Width
 int HEIGHT;                                        // Display Height
 #define IMAGE_WIDTH 240                            // Image Width
@@ -147,9 +149,33 @@ void dispImageRow(void){
   if(rownum > 240 || rownum < 0){
      return; 
   }
+  
+  
   // Loop through and update
   for(uint8_t col = 0; col < 240; col++){
     tft.drawPixel((uint16_t)col, rownum,imagerowdata.imagedata[col]);
+  }
+  if(rownum < 239){
+    if(rownum%2 == 0){
+      tft.drawHorizontalLine(0, rownum+1, 240, BLUE);
+    }else{
+      tft.drawHorizontalLine(0, rownum+1, 240, ORANGE);
+    }
+  }
+  
+  if(rownum = 239){
+    // User can press buttons again
+    canPress = true;
+    // UN-GRAY OUT BUTTONS
+    // Left Button
+    tft.fillRect(4,280,114, 36, WHITE);  // White Background
+    tft.fillRect(49,292,55,10, BLACK);  // Black Bar
+    tft.fillTriangle(50,310,50,284,20,297, BLACK);  // Black Triangle
+  
+    // Right Button
+    tft.fillRect(122,280,114,36,WHITE);  // White Background
+    tft.fillRect(135,292,55,10, BLACK);  // Black Bar
+    tft.fillTriangle(190,310,190,284,220,297, BLACK);  // Black Triangle
   }
 }
 
@@ -167,12 +193,19 @@ void sendCommand(uint8_t command){
   CS^=command;
   Serial.write(command);
   Serial.write(CS);
-  
-  if(command == ACK){
-    tft.fillRect(60,60,BOXSIZE+60, BOXSIZE+60,GREEN);
-  }
   if(command == NACK){
-    tft.fillRect(60,60,BOXSIZE+60, BOXSIZE+60,RED);
+    if(alternator){
+       alternator = false;
+       tft.drawHorizontalLine(0, 241, 240, MAGENTA);
+    }else{
+       alternator = true;
+       tft.drawHorizontalLine(0, 241, 240, CYAN);
+         
+    }
+    
+  }
+  else if(command == ACK){
+    tft.drawHorizontalLine(0, 241, 240, BLACK);
   }
 }
 
@@ -180,31 +213,48 @@ void sendCommand(uint8_t command){
 char receiveData(void){
   // Check if found Preamble already
   if(dataTypeReceived == 0){
+    
+    //rx_counter++;
+    
     // Haven't found data Preamble yet
-    if(Serial.available() >= 3){
+    if(Serial.available() >= 4){
       // Enough bytes present for the Preamble
       while(Serial.read() != P1){
         // Check if too few bytes present in buffer
-        if(Serial.available() < 2){
+        if(Serial.available() < 4){
+          sendCommand(NACK);
           return 0;
         }
       }
+      //rx_counter = 0;
       // Found first byte of Preamble
       if(Serial.read() == P2){
         if(Serial.read() == P3){
           // Found entire preamble, next byte is the packet data size
           dataTypeReceived = Serial.read();
-          //Serial.println("Found Header");
-          //tft.fillRect(160,160,BOXSIZE, BOXSIZE,BLUE);
-          //tft.drawString(300, 100, strtest, BLUE, 2);
+          //rx_counter = 0;
         }
       }
+      
+      /*
+      
+      if(rx_counter > (IMAGE_ROW_PACKET_SIZE+2)){
+        dataTypeReceived = 0;
+        rx_counter = 0;
+        sendCommand(NACK);
+      }
+      */
+      
     }
   }  
   
   if(dataTypeReceived == IMAGE_ROW_PACKET_TYPE){
     // Found Image+Row Packet, read in data
-    //Serial.println("Getting Data");
+    
+    // Debugging
+    tft.drawHorizontalLine(0, 240, 240, RED);
+    rx_counter++;
+    
     while(Serial.available() && rx_index<=IMAGE_ROW_PACKET_SIZE){
         rx_buf_imagerow[rx_index++] = Serial.read();
       }
@@ -218,8 +268,21 @@ char receiveData(void){
       //tester.toCharArray(strtest, 50);
       //tft.drawString(300, 100, strtest, BLUE, 2);
       
+      // To exit out if not recieved;
+      
+      if(rx_counter > (IMAGE_ROW_PACKET_SIZE+2)){
+        dataTypeReceived = 0;
+        rx_counter = 0;
+        sendCommand(NACK);
+      }
+      
+      
       
       if(IMAGE_ROW_PACKET_SIZE <= (rx_index - 1)){
+        
+        // Debugging
+        tft.drawHorizontalLine(0, 240, 240, BLACK);
+        
         // Received the entire message, now check checksum
         //Serial.println("Checking checksum");
         receivedCS = dataTypeReceived;
@@ -233,8 +296,10 @@ char receiveData(void){
           dataTypeReceived = 0;
           rx_index = 0;
           
+          
+          //rx_counter = 0;
           // SEND POSITIVE ACKNOWLEDGEMENT
-          //sendCommand(ACK);
+          sendCommand(ACK);
           
           return 1;
         }else{
@@ -242,8 +307,10 @@ char receiveData(void){
           dataTypeReceived = 0;
           rx_index = 0;
           
+          
+          //rx_counter = 0;
           // SEND NEGATIVE ACKNOWLEDGEMENT
-          //sendCommand(NACK);
+          sendCommand(NACK);
           return 0;
         }
       }
@@ -261,13 +328,11 @@ char receiveData(void){
     rx_index = 0;
     if(receivedCS == CS){
       // Correct Packet Found
-      //Serial.println("Correct Packet Found");
-      sendCommand(ACK);
+      //sendCommand(ACK);
       return 3;
     }else{
       // Incorrect Packet Found
-      //Serial.println("Incorrect Packet Found");
-      sendCommand(NACK);
+      //sendCommand(NACK);
       return 0;
     }
   }else{
@@ -277,87 +342,6 @@ char receiveData(void){
   return 0;
 }  
           
-      
-    
-    
-    
-
-  
-  /*
-  
- 
-  
-  if(rx_type == 0xAA){
-    // Found Image Row Packet, read in data
-      while(Serial.available() && rx_index<=imagerowpacketsize){
-        rx_buf_imagerow[rx_index++] = Serial.read();
-      }
-      
-      if(imagerowpacketsize == (rx_index - 1)){
-        // Received the entire message, now check checksum
-        receivedCS = rx_type;
-        for(int i = 0; i < imagerowpacketsize; i++){
-          receivedCS^=rx_buf_imagerow[i];
-        }
-        
-        if(receivedCS == rx_buf_imagerow[rx_index-1]){
-          // Found correct packet!
-          memcpy(&imagerowdata, rx_buf_imagerow, imagerowpacketsize);
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND POSITIVE ACKNOWLEDGEMENT
-          sendACK();
-          
-          return 1;
-        }else{
-          // Incorrect packet!
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendNACK();
-          return 0;
-        }
-      }
-  }else if(rx_type == 0xCC){
-    // Found Location Packet, read in data
-      while(Serial.available() && rx_index<=locationpacketsize){
-        rx_buf_location[rx_index++] = Serial.read();
-      }
-      
-      if(locationpacketsize == (rx_index - 1)){
-        // Received the entire message, now check checksum
-        receivedCS = rx_type;
-        for(int i = 0; i < locationpacketsize; i++){
-          receivedCS^=rx_buf_location[i];
-        }
-        
-        if(receivedCS == rx_buf_location[rx_index-1]){
-          // Found correct packet!
-          memcpy(&location, rx_buf_location, locationpacketsize);
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND POSITIVE ACKNOWLEDGEMENT
-          sendACK();
-          
-          return 3;
-        }else{
-          // Incorrect packet!
-          rx_type = 0;
-          rx_index = 0;
-          
-          // SEND NEGATIVE ACKNOWLEDGEMENT
-          sendNACK();
-          return 0;
-        }
-      }
-  }
-  
-  */
-
-
 
 /* ****************************************************************************** */
 /* **************************** Setup Program *********************************** */
@@ -377,63 +361,35 @@ void setup(void) {
   WIDTH = tft.width();
   HEIGHT = tft.height();
   
-  // TESTING
-  alternate = 0;  
-  imagerowdata.row = 200;
-  //Serial.print("Size of Row Packet = ");
-  //Serial.println(sizeof(rowpacket));
-
- /*
- for(uint8_t test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07E0;
-  }
- dispImageRow();
- */
- 
- /*
- imagerowdata.row = 241;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07E0;
-  }
- dispImageRow();
- 
- imagerowdata.row = 242;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07C0;
-  }
- dispImageRow();
- 
- imagerowdata.row = 243;
- for(char test = 0; test < 240; test++){
-    imagerowdata.imagedata[test] = 0x07C0;
-  }
- dispImageRow();
- */
- 
- /*
- char hic = 0x01;
- char lowc = 0x01;
- char cstest = 0xAA;
- 
- Serial.write(0xA1);
- Serial.write(0xB2);
- Serial.write(0xC3);
- Serial.write(0xAA);
- Serial.write(imagerowdata.row);
- cstest ^= imagerowdata.row;
- for(uint8_t test2 = 0; test2 < 240; test2++){
-   Serial.write(hic);
-   Serial.write(lowc);
-   cstest ^= hic;
-   cstest ^= lowc;
-   hic += 1;
-   lowc += 1;
-  }
+  // Text Area
+  tft.fillRect(4,244,232, 32, WHITE);  // White Background
+  char picportal[15] = {'P','i','c','t','u','r','e',' ','P','o','r','t','a','l','\0'};  // "Picture Portal" Text
+  tft.drawString(43, 254, picportal, BLACK, 2);// Picture Portal Text Render
+  tft.fillCircle(20, 262, 10,BLUE);
+  tft.fillCircle(20, 257, 10,BLUE);
+  tft.fillCircle(20, 262, 7, BLACK);
+  tft.fillCircle(20, 257, 7, BLACK);
   
-  Serial.write(cstest);
-  */
- 
- 
+  tft.fillCircle(220, 262, 10,ORANGE);
+  tft.fillCircle(220, 257, 10,ORANGE);
+  tft.fillCircle(220, 262, 7, BLACK);
+  tft.fillCircle(220, 257, 7, BLACK);
+  
+  tft.drawHorizontalLine(23, 262, 20, BLUE);
+  tft.drawHorizontalLine(22, 260, 21, BLUE);
+  tft.drawHorizontalLine(21, 258, 22, BLUE);
+  tft.drawHorizontalLine(23, 264, 20, BLUE);
+  
+  // Left Button
+  tft.fillRect(4,280,114, 36, WHITE);  // White Background
+  tft.fillRect(49,292,55,10, BLACK);  // Black Bar
+  tft.fillTriangle(50,310,50,284,20,297, BLACK);  // Black Triangle
+
+  
+  // Right Button
+  tft.fillRect(122,280,114,36,WHITE);  // White Background
+  tft.fillRect(135,292,55,10, BLACK);  // Black Bar
+  tft.fillTriangle(190,310,190,284,220,297, BLACK);  // Black Triangle 
 }
 
 
@@ -442,7 +398,7 @@ void setup(void) {
 /* ****************************************************************************** */
 void loop()
 {
-  delay(LOOPDELAY);
+  //delay(LOOPDELAY);
   
   // Check for Data
   dataReturn = receiveData();
@@ -463,17 +419,25 @@ void loop()
   
   // Check for Button Pressed
   PPgetPoint();       // Get the pressed point
-  if (newPoint){
-    if (((p.y-PENRADIUS) > BOXSIZE) && ((p.y+PENRADIUS) < tft.height())) {
-      tft.fillCircle(p.x, p.y, PENRADIUS, RED);
-      if(alternate){
-        //sendACK();
-        alternate = 0;
-      }else{
-        //sendNACK();
-        alternate = 1;
+  if (newPoint && canPress){
+    if(p.y > 280){
+      if(p.x < 120){
+        sendCommand(PREVIOUS_IMAGE);
+        canPress = false;
+      }
+      else{
+        sendCommand(NEXT_IMAGE);
+        canPress = false;
+      }
+      if(!canPress){
+        // Blank Screen
+        tft.fillRect(0,0,240,240,BLACK);
+        
+        // Gray Out Buttons
+        tft.fillRect(4,280,114, 36, GRAY);
+        tft.fillRect(122,280,114,36,GRAY);
       }
     }
   }
-  
+    
 } /**** END OF PICTURE PORTAL ****/
