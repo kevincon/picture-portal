@@ -16,6 +16,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <pthread.h>
+
+#include "linkedlist.h"
+
+#define DEBUG	0
+
 #define DEFAULT_SERIAL_PORT     "/dev/ttyACM0"
 #define PROGRAM                 "picture portal"
 
@@ -27,6 +33,10 @@ typedef struct {
   uint16_t data[240];
 } rowpacket;
 
+//thread-related global vars
+pthread_t thread_serial_id; // id of serial thread
+pthread_t thread_network_id; // id of network thread
+pthread_mutex_t lcd_lock; // lock for threads communicating with lcd
 
 char *serial_path;
 int serial_fd;
@@ -40,8 +50,39 @@ int sock; // socket descriptor
 int sin_size;
 int fd;
 // buffer to read data into
-uint8_t recv_data;
+//uint8_t recv_data;
 
+//#################################################
+
+//    Local Image Functions
+
+//#################################################
+
+void find_images() {
+  //int i = 0;
+  DIR *d;
+  struct dirent *dir;
+  //char path[50] = "images/";
+  d = opendir("./images");
+  if (d) {
+    while ((dir = readdir(d)) != NULL) {
+      if(!strcmp(".",dir->d_name) || !(strcmp("..",dir->d_name) || !(strcmp("aaaaa_pplogo.jpg", dir->d_name)))) {
+        //printf("skipping %s...\n", dir->d_name);
+      } else {
+        printf("adding %s...\n", dir->d_name);
+        char * path = (char *) malloc(50);
+        memcpy(path, "images/", 8);
+        strcat(path, dir->d_name);
+        add(path);
+        if (path != NULL) {
+        	free(path);
+        	path = NULL;
+        }
+      }
+    }
+    closedir(d);
+  }
+}
 
 //#################################################
 
@@ -68,8 +109,8 @@ void open_port() {
      * Set the baud rates to 19200...
      */
 
-    cfsetispeed(&options, B38400);
-    cfsetospeed(&options, B38400);
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
 
     /*
      * Enable the receiver and set local mode...
@@ -98,7 +139,8 @@ int read_bytes(uint8_t *dest, const int size) {
 	int val;
 
 	val = read(serial_fd, dest, size);
-	//printf("got char: %x\n", *dest);
+	if (DEBUG)
+		printf("got char: %x\n", *dest);
 	if (val >= 0) //include -1 for "resource temporarily unavailable"		
 		return val;
 	else {
@@ -117,10 +159,99 @@ int available() {
 }
 */
 
+/* Try to receive data and put it at location marked by dest
+ * Returns immediately if no data available to be read
+ * Return size of data received, otherwise 0
+ */
+int receive_data(uint8_t** dest) {
+	uint8_t buf, calc_CS;
+	int i, size;
+
+  	uint8_t type = 0;
+  	uint8_t rx_array_inx = 0;
+  	//printf("in receive data\n");
+  	//if(available() == 0)
+    	//return 0;
+  	//printf("data was available\n");
+	//try to receive preamble
+	buf = 0;
+	while(buf != 0xA1) {
+		if (DEBUG)
+			printf("trying to receive 0xA1\n");
+  		read_bytes(&buf, 1);
+	}
+
+	if (DEBUG)
+		printf("trying to receive 0xB2\n");
+	read_bytes(&buf, 1);
+	if (buf == 0xB2) {
+		if (DEBUG)
+			printf("trying to receive 0xC3\n");
+		read_bytes(&buf, 1);
+	  	if (buf == 0xC3) {
+	  		read_bytes(&type, 1);
+
+	  		switch (type) {
+		  		case 0xAA:
+		    		size = 482;
+		    		break;
+		  		case 0xBB:
+		    		size = 30;
+		    		break;
+	    		case 0xCC:
+	      			size = 1;
+	      			break;
+	    		default:
+	      			printf("error, received unexpected serial data type: %x\n", type);
+	      			return 0;
+			}
+
+	    	//malloc dest to this size
+		  	*dest = (uint8_t *) malloc(size);	
+		  	//printf("malloc'd dest to size %x\n", rx_len);
+	    	if (DEBUG)
+	    		printf("got preamble\n");
+	    
+	    	while(rx_array_inx <= size){
+				    read_bytes((uint8_t *)(*dest) + rx_array_inx++, 1);
+	    	}
+		    
+		    if (DEBUG)
+	    		printf("receiving data:\n");
+		    
+		    if (DEBUG) {
+			    for (i = 0; i < size; i++) {
+			      printf("%x\n", (*dest)[i]);
+			    }
+		    }
+
+	    	if(size == (rx_array_inx - 1)){
+		    	//last uint8_t is CS
+		    	if (DEBUG)
+		    		printf("seemed to have gotten whole message\n");
+		    	calc_CS = type;
+		    	for (i = 0; i < size; i++){
+				    calc_CS ^= (*dest)[i];
+		    	} 
+
+		    	if(calc_CS == (*dest)[rx_array_inx - 1]){
+		    		//CS good
+	        		return size;
+	      		} else {
+			    	//failed checksum
+	        		return 0;
+	      		}
+	    	}
+	  	}
+  	}
+  	//printf("failed to get preamble, returning\n");
+	return 0;
+}
+
 /* data is pointer to data
  * type = AA (img row) || BB (location) || CC (command)
  */
-void send_data(uint8_t *data, uint8_t type) {
+void send_data(uint8_t *data, uint8_t type, int fast) {
 	int i, j, val, len;
 	uint8_t buf, CS;
 
@@ -162,10 +293,13 @@ void send_data(uint8_t *data, uint8_t type) {
 		buf = *(data + j);
 		val = write(serial_fd, &buf, 1);
 		//printf("byte %d: %d\n", j, buf);
-	  struct timespec tim;
-    tim.tv_sec = 0;
-    tim.tv_nsec = 1000000;
-    nanosleep(&tim, NULL);
+	  //struct timespec tim;
+    //tim.tv_sec = 0;
+    //if (fast)
+    	//tim.tv_nsec = 10000;
+    //else
+    	//tim.tv_nsec = 1000000;
+    //nanosleep(&tim, NULL);
 	}
 	//lastly, write checksum
 	//printf("writing checksum %x...\n", CS);
@@ -174,7 +308,10 @@ void send_data(uint8_t *data, uint8_t type) {
 	tcsetattr(serial_fd, TCSAFLUSH, &options);
 }
 
-int send_image(const char* path) {
+//fast = 0 for slow, 1 for fast
+int send_image(const char* path, int fast) {
+	printf("Sending image %s...", path);
+
 	//give me a row packet to hold the pixels to send to the lcd screen
 	rowpacket* row = (rowpacket *) malloc(sizeof(rowpacket));
 
@@ -188,8 +325,25 @@ int send_image(const char* path) {
 		//This lets us modify the image
 		image.modifyImage();
 
+		int width = image.columns();
+		int height = image.rows();
+		printf("width: %d\n", width);
+		printf("height: %d\n", height);
+
+		if (width != height) {
+			printf("cropping image");
+			//crop image so height = width
+			//(width, height, xOffset, yOffset)
+			image.crop(Geometry(height < width ? height : width,height < width ? height : width));
+			printf("new width: %d\n", image.columns());
+			printf("new height: %d\n", image.rows());
+		}
+
 		//Resize the image to the size of the LCD screen
+		printf("resizing\n");
 		image.resize("240x240");
+		printf("new width: %d\n", image.columns());
+		printf("new height: %d\n", image.rows());
 
 		Pixels my_pixel_cache(image); // allocate an image pixel cache associated with my_image
 		PixelPacket* pixels; // 'pixels' is a pointer to a PixelPacket array
@@ -234,10 +388,32 @@ int send_image(const char* path) {
 		
 			//TODO send the serial packet
 			//printf("test: sending serial packet for row %d\n", start_y);
-			send_data((uint8_t *) row, 0xAA);
+			uint8_t *data;	
+			//send_data((uint8_t *) row, 0xAA, fast);
+			
+			while (1) {
+				if (DEBUG)
+					printf("trying to send row %i\n", start_y);
+				send_data((uint8_t *) row, 0xAA, fast);
+				receive_data(&data);
+				if (data != NULL) {
+					if (*data == 0x06) {
+						if (DEBUG)
+							printf("got ACK!\n");
+						free(data);
+						data = NULL;
+						break;
+					}
+				}
+				if (data != NULL) {
+					free(data);
+					data = NULL;
+				}
+			}
+			
 		}
 		free(row);
-		return 0;
+		printf("done.\n");
 	} 
 	catch( Exception &error_ ) 
 	{ 
@@ -294,23 +470,24 @@ void init_network(int PORT_NUMBER){
 }
 
 int receive_network(){
-      // 5. recv: read incoming message into buffer
-      int bytes_received = recv(fd,&recv_data,1,0);
-      // null-terminate the string
-      //recv_data[bytes_received] = '\0';
-      printf("Server received num bytes: %d\n", bytes_received);
-      printf("Server received byte: %x\n", recv_data);
+	// 5. recv: read incoming message into buffer
+	double recv_data;
+	int bytes_received = recv(fd,&recv_data,8, MSG_WAITALL);
+	// null-terminate the string
+	//recv_data[bytes_received] = '\0';
+	printf("Server received num bytes: %d\n", bytes_received);
+	printf("Server received double: %x\n", recv_data);
 
-      //sendACK();
-           
-      // echo back the message to the client
-      //char *send_data = "Thank you!\n";
+	//sendACK();
+	   
+	// echo back the message to the client
+	//char *send_data = "Thank you!\n";
 
-      // 6. send: send a message over the socket
-      //send(fd, send_data, strlen(send_data), 0);
+	// 6. send: send a message over the socket
+	//send(fd, send_data, strlen(send_data), 0);
 
-      //printf("Server sent message: %s\n", send_data);
-      //close_portcomm();
+	//printf("Server sent message: %s\n", send_data);
+	//close_portcomm();
   return bytes_received;
 }
 
@@ -321,6 +498,60 @@ void close_network(void){
 }
 
 
+//#################################################
+
+//    Thread Functions
+
+//#################################################
+
+void* serial_thread(void *dummy) {
+	uint8_t* data = NULL;
+	int ret = 0;
+	node *n = NULL;
+
+	while(1) {
+		if(data != NULL) {
+			free(data);
+      		data = NULL;
+    	}
+		pthread_mutex_lock(&lcd_lock);
+
+		ret = receive_data(&data);
+
+		if (ret == 1 && data != NULL) {
+			switch (*data) {
+				case 0x16:
+					// <-
+					//move back one image if not null
+					n = previousNode();
+					if (n != NULL) {
+						send_image(n->filename, 0);
+					}
+					break;
+				case 0x17:
+					// ->
+					//move forward one image if not null
+					n = nextNode();
+					if (n != NULL) {
+						send_image(n->filename, 0);
+					}
+					break;
+				case 0x06:
+					//ACK
+					break;
+				case 0x15:
+					//NAK
+					break;
+			}
+		}
+		pthread_mutex_unlock(&lcd_lock);
+	}
+}
+
+void* network_thread(void *dummy) {
+
+}
+
 int main(int argc,char **argv) {
 	if (argc > 1) {
 		serial_path = argv[1];
@@ -328,20 +559,39 @@ int main(int argc,char **argv) {
 		serial_path = (char *) DEFAULT_SERIAL_PORT;
 	}
 	
-  printf("Opening serial port: %s\n", serial_path);
-  open_port();  
-  
-  sleep(5);
-	send_image("chegg.jpg");	
-	
-	close_port();
-	
-  //TODO test Teddy
+	//TODO GOOD
 	/*
-	init_network(1337);
-  
-  receive_network();
-  
-  close_network();
+	printf("Opening serial port: %s\n", serial_path);
+	open_port();
+	
+	sleep(2);
+
+	//printf("Loading Picture Portal logo...\n");
+	//char init[50] = "logo.jpg";
+	//send_image(init, 0);
+
+	printf("Looking for existing images...\n");
+	find_images();
+
+	//create thread for serial communication
+  	pthread_create(&thread_serial_id, NULL, &serial_thread, NULL);
+	
+	//create thread for network communication
+	pthread_create(&thread_network_id, NULL, &network_thread, NULL);
+	
+	//wait for threads to finish (never)
+	pthread_join(thread_network_id, NULL);
+	pthread_join(thread_serial_id, NULL);
+	
+	printf("Closing serial port.\n");
+	close_port();
 	*/
+	
+	//TODO test Teddy
+	init_network(1337);
+
+	receive_network();
+
+	close_network();
+	//printf("size of long: %d\n", sizeof(double));
 }
