@@ -29,6 +29,7 @@ public class AndroidActivity extends Activity {
 	private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 	private Uri fileUri;
 	private static String img_path;
+	private static String img_name;
 	private static byte b[];
 	private static long fsize;
 	
@@ -79,24 +80,27 @@ public class AndroidActivity extends Activity {
         				outToServer.write(b[i]);
         			}
         			
+        			//send image name
+        			char iname[] = img_name.toCharArray();
+        			for (i=0; i < iname.length; i++){
+        				outToServer.write(iname[i]);
+        			}
+        			
             		//send image
-            		FileInputStream fin; 
-            		fin = new FileInputStream(img_path); 
-            		BufferedInputStream bis = new BufferedInputStream(fin);
-            		DataInputStream dis = new DataInputStream(bis);
+            		FileInputStream fis = new FileInputStream(img_path);
+            		BufferedInputStream in = new BufferedInputStream(fis);
+            		BufferedOutputStream out = new BufferedOutputStream(outToServer);
             		
-        			try {          			
-            			for (i=0; i < fsize; i++) {
-            				byte buf = dis.readByte();
-            				outToServer.write(buf);
+            		try {
+            			while ((i = in.read()) != -1) {  
+            				out.write(i);
             			}
             		}
-            		catch(Exception e)
-            		{
+            		catch(Exception e){
             			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
-            			return;
+            			return;           			
             		}
-        			/*
+        			
         			//send image location
         			ExifInterface exif = new ExifInterface(img_path);
         			float[] latlong = new float[2];
@@ -108,14 +112,12 @@ public class AndroidActivity extends Activity {
         			}
         			else
     			       	loc = "Universe".toCharArray();
-       				//byte loc_len = (byte)loc.length;
-        			//outToServer.write(loc_len);
+       				byte loc_len = (byte)loc.length;
+        			outToServer.write(loc_len);
         			for (i = 0; i<loc.length; i++){
-        				//outToServer.write(loc[i]);
-        				//Log.d("sdfs","asd");
+        				outToServer.write(loc[i]);
         			}
-        			*/
-        			
+        			        			
             		serverSocket.close();
             	} catch (Exception e) {
             		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
@@ -208,6 +210,7 @@ public class AndroidActivity extends Activity {
         if (type == MEDIA_TYPE_IMAGE){
             mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg");
             img_path = mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg";
+            img_name = timeStamp + ".jpg";
         } else {
             return null;
         }
