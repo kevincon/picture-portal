@@ -51,7 +51,7 @@ char alternate;
 
 /************************* SERIAL *************************/
 // PACKET STRUCTURE = (P1) + (P2) + (P3) + (PACKET TYPE) + (DATA) + (CHECKSUM)
-#define USBBAUD 38400                             // USBCommunication Baud Rate            // 38400 at 500us works well
+#define USBBAUD 115200                             // USBCommunication Baud Rate            // 38400 at 500us works well
 #define IMAGE_LOCATION_LENGTH 30                   // Size of Image Location Data in bytes
 char location[IMAGE_LOCATION_LENGTH];              // Char array to hold Image Location Data
 typedef struct{                   // Struct for holding Image Row Data
@@ -155,6 +155,14 @@ void dispImageRow(void){
   for(uint8_t col = 0; col < 240; col++){
     tft.drawPixel((uint16_t)col, rownum,imagerowdata.imagedata[col]);
   }
+  
+  if(rownum > 0 && canPress){
+    // Gray out buttons
+    tft.fillRect(4,280,114, 36, GRAY);
+    tft.fillRect(122,280,114,36,GRAY);
+    canPress = false;
+  }
+  
   if(rownum < 239){
     if(rownum%2 == 0){
       tft.drawHorizontalLine(0, rownum+1, 240, BLUE);
@@ -163,7 +171,7 @@ void dispImageRow(void){
     }
   }
   
-  if(rownum = 239){
+  if(rownum == 239){
     // User can press buttons again
     canPress = true;
     // UN-GRAY OUT BUTTONS
@@ -270,7 +278,7 @@ char receiveData(void){
       
       // To exit out if not recieved;
       
-      if(rx_counter > (IMAGE_ROW_PACKET_SIZE+2)){
+      if(rx_counter > (60)){   //60 at 57600baud
         dataTypeReceived = 0;
         rx_counter = 0;
         sendCommand(NACK);
