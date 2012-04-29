@@ -6,7 +6,13 @@
 #ifndef _LINKED_LIST_H_
 #define _LINKED_LIST_H_
 
-#include "picture-portal.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#define IMAGE_MAX_FILENAME_LENGTH   30
+
+//#include "picture-portal.h"
 
 // Linked List Struct Definition
 typedef struct linked_list{
@@ -14,11 +20,6 @@ typedef struct linked_list{
     struct linked_list * next;
     struct linked_list * previous;
 } node;
-
-// Current, Head, Tail, and Iterate Nodes
-node * head;
-node * tail; 
-node * iterate;
 
 /* Function Declarations */
 void add(char *);
