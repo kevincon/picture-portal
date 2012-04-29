@@ -37,6 +37,7 @@ typedef struct {
 pthread_t thread_serial_id; // id of serial thread
 pthread_t thread_network_id; // id of network thread
 pthread_mutex_t lcd_lock; // lock for threads communicating with lcd
+int mutex_locked = 0;
 
 char *serial_path;
 int serial_fd;
@@ -196,7 +197,7 @@ int receive_data(uint8_t** dest) {
 		    		size = 482;
 		    		break;
 		  		case 0xBB:
-		    		size = 30;
+		    		size = 19;
 		    		break;
 	    		case 0xCC:
 	      			size = 1;
@@ -278,7 +279,7 @@ void send_data(uint8_t *data, uint8_t type, int fast) {
 	    len = 482;
 	    break;
 	  case 0xBB:
-	    len = 30;
+	    len = 19;
 	    break;
     case 0xCC:
       len = 1;
@@ -309,7 +310,7 @@ void send_data(uint8_t *data, uint8_t type, int fast) {
 }
 
 //fast = 0 for slow, 1 for fast
-int send_image(const char* path, int fast) {
+int send_image(const char* path, int fast, char* location) {
 	printf("Sending image %s...", path);
 
 	//give me a row packet to hold the pixels to send to the lcd screen
@@ -395,6 +396,8 @@ int send_image(const char* path, int fast) {
 				if (DEBUG)
 					printf("trying to send row %i\n", start_y);
 				send_data((uint8_t *) row, 0xAA, fast);
+				if (DEBUG)
+					printf("calling receive data in send_image\n");
 				receive_data(&data);
 				if (data != NULL) {
 					if (*data == 0x06) {
@@ -413,6 +416,16 @@ int send_image(const char* path, int fast) {
 			
 		}
 		free(row);
+
+		if (location == NULL) {
+			location = (char *) malloc(19);
+			strncpy(location, "Philadelphia", 19);
+			if (location[18] != '\0')
+				location[18] = '\0';
+		}
+
+		send_data((uint8_t *)location, 0xBB, fast);
+
 		printf("done.\n");
 	} 
 	catch( Exception &error_ ) 
@@ -461,34 +474,86 @@ void init_network(int PORT_NUMBER){
           
       printf("\nServer waiting for connection on port %d\n", PORT_NUMBER);
       fflush(stdout);
-     
-
-      // 4. accept: wait until we get a connection on that port
-      sin_size = sizeof(struct sockaddr_in);
-      fd = accept(sock, (struct sockaddr *)&client_addr,(socklen_t *)&sin_size);
-      printf("Server got a connection from (%s, %d)\n", inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
 }
 
 int receive_network(){
 	// 5. recv: read incoming message into buffer
-	double recv_data;
-	int bytes_received = recv(fd,&recv_data,8, MSG_WAITALL);
+	int64_t file_size;
+	int bytes_received = recv(fd, &file_size, 8, MSG_WAITALL);
 	// null-terminate the string
 	//recv_data[bytes_received] = '\0';
-	printf("Server received num bytes: %d\n", bytes_received);
-	printf("Server received double: %x\n", recv_data);
+	if (1) {
+		printf("Server received num bytes: %d\n", bytes_received);
+		printf("Server received file_size: %d\n", file_size);
+	}
 
-	//sendACK();
-	   
-	// echo back the message to the client
-	//char *send_data = "Thank you!\n";
+	char * file_name = (char *) malloc(20);
+	bytes_received = recv(fd, file_name, 19, MSG_WAITALL);
+	// null-terminate the string
+	file_name[bytes_received] = '\0';
+	if (1) {
+		printf("Server received num bytes: %d\n", bytes_received);
+		printf("Server received file_name: %s\n", file_name);
+	}
 
-	// 6. send: send a message over the socket
-	//send(fd, send_data, strlen(send_data), 0);
+	uint8_t location_size;
+	bytes_received = recv(fd, &location_size, 1, MSG_WAITALL);
+	if (1) {
+		printf("Server received num bytes: %d\n", bytes_received);
+		printf("Server received location_size: %d\n", location_size);
+	}
 
-	//printf("Server sent message: %s\n", send_data);
-	//close_portcomm();
-  return bytes_received;
+	char * location = (char *) malloc(location_size);
+	bytes_received = recv(fd, location, location_size, MSG_WAITALL);
+	// null-terminate the string
+	location[bytes_received] = '\0';
+	//if (DEBUG) {
+	if (1) {
+		printf("Server received num bytes: %d\n", bytes_received);
+		printf("Server received location: %s\n", location);	
+	}
+
+	char *location_to_show;
+	location_to_show = (char *) malloc(19);
+	if (location != NULL) {
+		memcpy(location_to_show, location, location_size);
+		if (location[location_size] != '\0')
+					location[location_size] = '\0';
+		printf("location to show: %s\n", location_to_show);
+	} else {
+		strncpy(location_to_show, "Location unknown", 19);
+		if (location[18] != '\0')
+					location[18] = '\0';
+	}
+	
+	char * path = (char *) malloc(50);
+    memcpy(path, "images/", 8);
+    strcat(path, file_name);
+
+    //printf("path to save: %s\n", path);
+
+	FILE * new_image_file;
+
+	new_image_file = fopen(path, "w+");
+	if (new_image_file == NULL) {
+		printf("new image open failed\n");
+		perror(PROGRAM);
+	}	
+
+	uint8_t * new_image = (uint8_t *) malloc(file_size);
+	bytes_received = recv(fd, new_image, file_size, MSG_WAITALL);
+	if (DEBUG)
+		printf("Server received num bytes: %d\n", bytes_received);
+	bytes_received = fwrite(new_image, 1, file_size, new_image_file);
+
+	if (DEBUG)
+		printf("wrote %d bytes to file\n", bytes_received);
+
+	fclose(new_image_file);
+
+	send_image(path, 0, location_to_show);
+
+	return bytes_received;
 }
 
 void close_network(void){
@@ -508,14 +573,26 @@ void* serial_thread(void *dummy) {
 	uint8_t* data = NULL;
 	int ret = 0;
 	node *n = NULL;
+	int ilockedit = 0;
 
 	while(1) {
 		if(data != NULL) {
 			free(data);
       		data = NULL;
     	}
-		pthread_mutex_lock(&lcd_lock);
+		
+		if(mutex_locked) {
+			printf("serial thread locking mutex at top\n");
+			pthread_mutex_lock(&lcd_lock);
+			mutex_locked = 1;
+			printf("serial thread locked mutex.\n");
+			printf("serial thread unlocking mutex\n");
+			pthread_mutex_unlock(&lcd_lock);
+			mutex_locked = 0;
+		}
 
+		if (DEBUG)
+			printf("calling receive_data in serial_thread\n");
 		ret = receive_data(&data);
 
 		if (ret == 1 && data != NULL) {
@@ -523,33 +600,69 @@ void* serial_thread(void *dummy) {
 				case 0x16:
 					// <-
 					//move back one image if not null
+					printf("serial thread locking mutex back\n");
+					mutex_locked = 1;
+					ilockedit = 1;
+					pthread_mutex_lock(&lcd_lock);
+					printf("serial thread locked mutex.\n");
 					n = previousNode();
 					if (n != NULL) {
-						send_image(n->filename, 0);
+						send_image(n->filename, 0, NULL);
 					}
+					printf("serial thread unlocking mutex back\n");
+					pthread_mutex_unlock(&lcd_lock);
+					mutex_locked = 0;
 					break;
 				case 0x17:
 					// ->
 					//move forward one image if not null
+					printf("serial thread locking mutex forward\n");				
+					mutex_locked = 1;
+					ilockedit = 1;
+					pthread_mutex_lock(&lcd_lock);
+					printf("serial thread locked mutex.\n");
 					n = nextNode();
 					if (n != NULL) {
-						send_image(n->filename, 0);
+						send_image(n->filename, 0, NULL);
 					}
+					printf("serial thread unlocking mutex forward\n");
+					pthread_mutex_unlock(&lcd_lock);
+					mutex_locked = 0;
 					break;
 				case 0x06:
 					//ACK
+					//send back an ACK
+					uint8_t ackbuf;
+					ackbuf = 0x06;
+					send_data(&ackbuf, 0xCC, 0);
 					break;
 				case 0x15:
 					//NAK
 					break;
 			}
 		}
-		pthread_mutex_unlock(&lcd_lock);
 	}
 }
 
 void* network_thread(void *dummy) {
+	init_network(1337);
 
+	while (1) {
+		//wait until we get a connection
+		sin_size = sizeof(struct sockaddr_in);
+		fd = accept(sock, (struct sockaddr *)&client_addr,(socklen_t *)&sin_size);
+		mutex_locked = 1;
+		printf("network thread locking mutex\n");
+		pthread_mutex_lock(&lcd_lock);
+		mutex_locked = 1;
+		printf("network thread locked mutex\n");
+		printf("Server got a connection from (%s, %d)\n", inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
+		receive_network();
+		close_network();
+		printf("network thread unlocking mutex\n");
+		pthread_mutex_unlock(&lcd_lock);
+		mutex_locked = 0;
+	}
 }
 
 int main(int argc,char **argv) {
@@ -560,7 +673,7 @@ int main(int argc,char **argv) {
 	}
 	
 	//TODO GOOD
-	/*
+	
 	printf("Opening serial port: %s\n", serial_path);
 	open_port();
 	
@@ -585,13 +698,8 @@ int main(int argc,char **argv) {
 	
 	printf("Closing serial port.\n");
 	close_port();
-	*/
 	
 	//TODO test Teddy
-	init_network(1337);
-
-	receive_network();
-
-	close_network();
+	
 	//printf("size of long: %d\n", sizeof(double));
 }

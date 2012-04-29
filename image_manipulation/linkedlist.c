@@ -30,20 +30,24 @@ void add(char * filen){
  * Returns the next node
  */
  node * nextNode(void){
-    if(iterate == NULL){
+    node * returnnode;
+    if(iterate == NULL || iterate == tail){
         resetIterator();
         //return iterate;
+    } else {
+        iterate = iterate->next;
     }
 
-    node * returnnode = iterate;
-
+    returnnode = iterate;
+/*
     if(iterate != NULL) {    
         iterate = iterate->next;
-        if(iterate == NULL){
+        //if(iterate == NULL){
             // Reset Linked List
-            resetIterator();
-        }
+        //    resetIterator();
+        //}
     }
+*/
     return returnnode;
 }
 
@@ -51,16 +55,16 @@ void add(char * filen){
  * Returns the previous node
  */
  node * previousNode(void){
-    if(iterate == NULL){
-        resetIterator();
-        return iterate;
+    node * returnnode;
+    if(iterate == NULL || iterate == head){
+        iterate = tail;
+        //return iterate;
+    } else {
+        iterate = iterate->previous;
     }
-    node * returnnode = iterate;
-    iterate = iterate->previous;
-    if(iterate == NULL){
-        // Reset Linked List
-        resetIterator();
-    }
+    
+    returnnode = iterate;
+
     return returnnode;
 }
  
