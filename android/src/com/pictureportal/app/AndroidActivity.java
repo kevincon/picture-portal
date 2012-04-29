@@ -28,7 +28,8 @@ public class AndroidActivity extends Activity {
 	
 	private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 	private Uri fileUri;
-	private static String img_path, img_name;
+	private static String img_path;
+	private static String img_name;
 	private static byte b[];
 	private static long fsize;
 	
@@ -84,40 +85,39 @@ public class AndroidActivity extends Activity {
         				outToServer.write(iname[i]);
         			}
         			
+        			// send image location
+        			ExifInterface exif = new ExifInterface(img_path);
+        			float[] latlong = new float[2];
+        			char loc[];
+        			if(exif.getLatLong(latlong)) {  
+        				Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+        				Address addr = geocoder.getFromLocation(latlong[0], latlong[1], 1).get(0);
+        				loc = addr.getLocality().toCharArray();
+        			}
+        			else {
+    			       	loc = "Milky Way".toCharArray();
+        			}
+       				int loc_len = loc.length;
+        			outToServer.write(loc_len);
+        			
+        			for (i = 0; i<loc_len; i++){
+        				outToServer.write(loc[i]);
+        			}
+        			
             		// send image
             		FileInputStream fis = new FileInputStream(img_path);
             		BufferedInputStream in = new BufferedInputStream(fis);
-            		BufferedOutputStream out = new BufferedOutputStream(outToServer);
             		
             		try {
             			while ((i = in.read()) != -1) {  
-            				out.write(i);
+            				outToServer.write(i);
             			}
             		}
             		catch(Exception e){
             			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
             			return;           			
             		}
-        			
-        			// send image location
-        			ExifInterface exif = new ExifInterface(img_path);
-        			float[] latlong = new float[2];
-        			char loc[];
-        			String defaultloc = "Milky Way";
-        			if(exif.getLatLong(latlong)) {  
-        				Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-        				Address addr = geocoder.getFromLocation(latlong[0], latlong[1], 1).get(0);
-        				loc = addr.getLocality().toCharArray();
-        			}
-        			else
-    			       	loc = defaultloc.toCharArray();
-        			
-       				byte loc_len = (byte)loc.length;
-        			outToServer.write(loc_len);
-        			for (i = 0; i<loc.length; i++){
-        				outToServer.write(loc[i]);
-        			}
-        			        			
+        			       			
             		serverSocket.close();
             	} catch (Exception e) {
             		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
