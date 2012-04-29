@@ -1,5 +1,5 @@
-all: imagetest.cpp
-	g++ -g -O2 -o imagetest imagetest.cpp linkedlist.c `Magick++-config --cppflags --cxxflags --ldflags --libs`
+all: main.cpp
+	g++ -g -O2 -o pictureportal main.cpp linkedlist.c `Magick++-config --cppflags --cxxflags --ldflags --libs`
 
 clean:
-	rm imagetest
+	rm pictureportal 
