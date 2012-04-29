@@ -9,7 +9,7 @@
 /*                      University of Pennsylvania                        */
 /* CIS-542 - Embedded Systems Programming (Spring 2012)                   */
 /* Date : March 23, 2011                                                  */
-/* Version : 1.0                                                          */
+/* Version : 1.1                                                          */
 /* Hardware : Arduino UNO, 2.8" TFT Touch Screen (ILI9325)                */
 /* ********************************************************************** */
 
@@ -51,14 +51,14 @@ char alternate;
 
 /************************* SERIAL *************************/
 // PACKET STRUCTURE = (P1) + (P2) + (P3) + (PACKET TYPE) + (DATA) + (CHECKSUM)
-#define USBBAUD 38400                             // USBCommunication Baud Rate            // 38400 at 500us works well
-#define IMAGE_LOCATION_LENGTH 30                   // Size of Image Location Data in bytes
+#define USBBAUD 115200                             // USBCommunication Baud Rate            // 38400 at 500us works well
+#define IMAGE_LOCATION_LENGTH 19                   // Size of Image Location Data in bytes
 char location[IMAGE_LOCATION_LENGTH];              // Char array to hold Image Location Data
-typedef struct{                   // Struct for holding Image Row Data
-  uint16_t row;                 // Row numbers
-  uint16_t imagedata[240];  // Row Data
+typedef struct{                                    // Struct for holding Image Row Data
+  uint16_t row;                                    // Row numbers
+  uint16_t imagedata[240];                         // Row Data
 } rowpacket;
-rowpacket imagerowdata;             // Struct
+rowpacket imagerowdata;                            // Struct
 #define P1 0xA1                                    // Preamble Byte 1
 #define P2 0xB2                                    // Preamble Byte 2
 #define P3 0xC3                                    // Preamble Byte 3
@@ -75,7 +75,7 @@ uint8_t tempChar;                                  // Temporary Char Data
 uint8_t commandChar;                               // Command Char Data
 uint8_t dataTypeReceived;                          // Data Type (Image Data, Location Data, Command Data)
 uint8_t dataReturn;                                // Data Read Correctly (1,2,3) or Not yet (0)
-uint16_t rx_index;                                  // Received data index
+uint16_t rx_index;                                 // Received data index
 uint8_t CS;                                        // Checksum data
 uint8_t receivedCS;                                // Received Checksum
 #define IMAGE_ROW_PACKET_SIZE 482                  // Image+Row Struct Size in Bytes
@@ -143,6 +143,53 @@ void PPgetPoint(void){
   }
 }
 
+void drawLogoText(void){
+  tft.fillRect(4,244,232, 32, WHITE);  // White Background
+  char picportal[15] = {'P','i','c','t','u','r','e',' ','P','o','r','t','a','l','\0'};  // "Picture Portal" Text
+  tft.drawString(43, 254, picportal, BLACK, 2);// Picture Portal Text Render
+  tft.fillCircle(20, 262, 10,BLUE);
+  tft.fillCircle(20, 257, 10,BLUE);
+  tft.fillCircle(20, 262, 7, BLACK);
+  tft.fillCircle(20, 257, 7, BLACK);
+  
+  tft.fillCircle(220, 262, 10,ORANGE);
+  tft.fillCircle(220, 257, 10,ORANGE);
+  tft.fillCircle(220, 262, 7, BLACK);
+  tft.fillCircle(220, 257, 7, BLACK);
+  
+  tft.drawHorizontalLine(23, 262, 20, BLUE);
+  tft.drawHorizontalLine(22, 260, 21, BLUE);
+  tft.drawHorizontalLine(21, 258, 22, BLUE);
+  tft.drawHorizontalLine(23, 264, 20, BLUE);
+}
+
+void drawLoadingText(void){
+  tft.fillRect(4,244,232, 32, WHITE);  // White Background
+  char picportal[12] = {' ',' ',' ',' ','L','O','A','D','I','N','G','\0'};  // "Picture Portal" Text
+  tft.drawString(43, 254, picportal, BLACK, 2);// Picture Portal Text Render
+  tft.fillCircle(20, 262, 10,BLUE);
+  tft.fillCircle(20, 257, 10,BLUE);
+  tft.fillCircle(20, 262, 7, BLACK);
+  tft.fillCircle(20, 257, 7, BLACK);
+  
+  tft.fillCircle(220, 262, 10,ORANGE);
+  tft.fillCircle(220, 257, 10,ORANGE);
+  tft.fillCircle(220, 262, 7, BLACK);
+  tft.fillCircle(220, 257, 7, BLACK);
+  
+  tft.drawHorizontalLine(23, 262, 68, BLUE);
+  tft.drawHorizontalLine(22, 260, 69, BLUE);
+  tft.drawHorizontalLine(21, 258, 70, BLUE);
+  tft.drawHorizontalLine(23, 264, 68, BLUE);
+}
+
+
+void dispLocation(void){
+  tft.fillRect(4,244,232, 32, WHITE);  // White Background
+  tft.drawString(10, 254, location, BLACK, 2);// Picture Portal Text Render
+}
+
+
 // USB Cable At Top = X is from Left to Right, Y is from Top to Bottom
 void dispImageRow(void){
   uint16_t rownum = (uint16_t)imagerowdata.row;
@@ -155,6 +202,18 @@ void dispImageRow(void){
   for(uint8_t col = 0; col < 240; col++){
     tft.drawPixel((uint16_t)col, rownum,imagerowdata.imagedata[col]);
   }
+  
+  if(rownum > 0 && canPress){
+    // Blank Screen
+    tft.fillRect(0,0,240,240,BLACK);
+        
+    // Gray out buttons
+    tft.fillRect(4,280,114, 36, GRAY);
+    tft.fillRect(122,280,114,36,GRAY);
+    drawLoadingText();
+    canPress = false;
+  }
+  
   if(rownum < 239){
     if(rownum%2 == 0){
       tft.drawHorizontalLine(0, rownum+1, 240, BLUE);
@@ -163,7 +222,7 @@ void dispImageRow(void){
     }
   }
   
-  if(rownum = 239){
+  if(rownum == 239){
     // User can press buttons again
     canPress = true;
     // UN-GRAY OUT BUTTONS
@@ -176,9 +235,9 @@ void dispImageRow(void){
     tft.fillRect(122,280,114,36,WHITE);  // White Background
     tft.fillRect(135,292,55,10, BLACK);  // Black Bar
     tft.fillTriangle(190,310,190,284,220,297, BLACK);  // Black Triangle
+    drawLogoText();
   }
 }
-
 
 /* ****************************************************************************** */
 /* **********************   System Serial Functions  *************************** */
@@ -213,9 +272,6 @@ void sendCommand(uint8_t command){
 char receiveData(void){
   // Check if found Preamble already
   if(dataTypeReceived == 0){
-    
-    //rx_counter++;
-    
     // Haven't found data Preamble yet
     if(Serial.available() >= 4){
       // Enough bytes present for the Preamble
@@ -226,65 +282,31 @@ char receiveData(void){
           return 0;
         }
       }
-      //rx_counter = 0;
       // Found first byte of Preamble
       if(Serial.read() == P2){
         if(Serial.read() == P3){
           // Found entire preamble, next byte is the packet data size
           dataTypeReceived = Serial.read();
-          //rx_counter = 0;
         }
-      }
-      
-      /*
-      
-      if(rx_counter > (IMAGE_ROW_PACKET_SIZE+2)){
-        dataTypeReceived = 0;
-        rx_counter = 0;
-        sendCommand(NACK);
-      }
-      */
-      
+      }      
     }
   }  
   
   if(dataTypeReceived == IMAGE_ROW_PACKET_TYPE){
     // Found Image+Row Packet, read in data
-    
-    // Debugging
-    tft.drawHorizontalLine(0, 240, 240, RED);
     rx_counter++;
     
     while(Serial.available() && rx_index<=IMAGE_ROW_PACKET_SIZE){
         rx_buf_imagerow[rx_index++] = Serial.read();
       }
-      //Serial.print("Image row size = ");
-      //Serial.println(IMAGE_ROW_PACKET_SIZE);
-      
-      //Serial.print("Index = ");
-      //Serial.println(rx_index);
-      //tft.fillRect(300,100,40, 40,BLACK);
-      //tester = String(rx_index);
-      //tester.toCharArray(strtest, 50);
-      //tft.drawString(300, 100, strtest, BLUE, 2);
-      
       // To exit out if not recieved;
-      
-      if(rx_counter > (IMAGE_ROW_PACKET_SIZE+2)){
+      if(rx_counter > (60)){   //60 at 57600baud
         dataTypeReceived = 0;
         rx_counter = 0;
         sendCommand(NACK);
       }
-      
-      
-      
       if(IMAGE_ROW_PACKET_SIZE <= (rx_index - 1)){
-        
-        // Debugging
-        tft.drawHorizontalLine(0, 240, 240, BLACK);
-        
         // Received the entire message, now check checksum
-        //Serial.println("Checking checksum");
         receivedCS = dataTypeReceived;
         for(int i = 0; i < IMAGE_ROW_PACKET_SIZE; i++){
           receivedCS^=rx_buf_imagerow[i];
@@ -296,9 +318,8 @@ char receiveData(void){
           dataTypeReceived = 0;
           rx_index = 0;
           
-          
-          //rx_counter = 0;
           // SEND POSITIVE ACKNOWLEDGEMENT
+          Serial.flush();
           sendCommand(ACK);
           
           return 1;
@@ -307,17 +328,37 @@ char receiveData(void){
           dataTypeReceived = 0;
           rx_index = 0;
           
-          
-          //rx_counter = 0;
           // SEND NEGATIVE ACKNOWLEDGEMENT
+          Serial.flush();
           sendCommand(NACK);
           return 0;
         }
       }
   }else if(dataTypeReceived == LOCATION_PACKET_TYPE){
     // Found Location Packet, read in data
-    
-    
+    while(Serial.available() && rx_index<=IMAGE_LOCATION_LENGTH){
+        rx_buf_location[rx_index++] = Serial.read();
+    }
+    if(IMAGE_LOCATION_LENGTH <= (rx_index - 1)){
+      // Received the entire message, now check checksum
+      receivedCS = dataTypeReceived;
+      for(int i = 0; i < IMAGE_LOCATION_LENGTH; i++){
+        receivedCS^=rx_buf_location[i];
+      }
+      
+      if(receivedCS == rx_buf_location[rx_index-1]){
+          // Found correct packet!
+          memcpy(&location, rx_buf_location, IMAGE_LOCATION_LENGTH);
+          dataTypeReceived = 0;
+          rx_index = 0;
+          return 2;
+        }else{
+          // Incorrect packet!
+          dataTypeReceived = 0;
+          rx_index = 0;
+          return 0;
+        }
+    }
   }else if(dataTypeReceived == COMMAND_PACKET_TYPE){
     // Found Command Packet, read in data
     commandChar = Serial.read();
@@ -328,11 +369,9 @@ char receiveData(void){
     rx_index = 0;
     if(receivedCS == CS){
       // Correct Packet Found
-      //sendCommand(ACK);
       return 3;
     }else{
       // Incorrect Packet Found
-      //sendCommand(NACK);
       return 0;
     }
   }else{
@@ -361,31 +400,14 @@ void setup(void) {
   WIDTH = tft.width();
   HEIGHT = tft.height();
   
-  // Text Area
-  tft.fillRect(4,244,232, 32, WHITE);  // White Background
-  char picportal[15] = {'P','i','c','t','u','r','e',' ','P','o','r','t','a','l','\0'};  // "Picture Portal" Text
-  tft.drawString(43, 254, picportal, BLACK, 2);// Picture Portal Text Render
-  tft.fillCircle(20, 262, 10,BLUE);
-  tft.fillCircle(20, 257, 10,BLUE);
-  tft.fillCircle(20, 262, 7, BLACK);
-  tft.fillCircle(20, 257, 7, BLACK);
-  
-  tft.fillCircle(220, 262, 10,ORANGE);
-  tft.fillCircle(220, 257, 10,ORANGE);
-  tft.fillCircle(220, 262, 7, BLACK);
-  tft.fillCircle(220, 257, 7, BLACK);
-  
-  tft.drawHorizontalLine(23, 262, 20, BLUE);
-  tft.drawHorizontalLine(22, 260, 21, BLUE);
-  tft.drawHorizontalLine(21, 258, 22, BLUE);
-  tft.drawHorizontalLine(23, 264, 20, BLUE);
+  // Logo
+  drawLogoText();
   
   // Left Button
   tft.fillRect(4,280,114, 36, WHITE);  // White Background
   tft.fillRect(49,292,55,10, BLACK);  // Black Bar
   tft.fillTriangle(50,310,50,284,20,297, BLACK);  // Black Triangle
 
-  
   // Right Button
   tft.fillRect(122,280,114,36,WHITE);  // White Background
   tft.fillRect(135,292,55,10, BLACK);  // Black Bar
@@ -397,24 +419,18 @@ void setup(void) {
 /* **************************** Main Program ************************************ */
 /* ****************************************************************************** */
 void loop()
-{
-  //delay(LOOPDELAY);
-  
+{ 
   // Check for Data
   dataReturn = receiveData();
   if(dataReturn == 1){       // Received Image Data
     dispImageRow();
   }else if(dataReturn == 2){ // Received Location Data
-  
+    dispLocation();
   }else if(dataReturn == 3){ // Received Command Data
       //Serial.print("Received DATA!");
       if(commandChar == ACK){
-        //tft.fillRect(0,0,BOXSIZE, BOXSIZE,GREEN);
-      }
-      if(commandChar == NACK){
-        //tft.fillRect(0,0,BOXSIZE, BOXSIZE, RED);
-      }
-      
+        sendCommand(ACK);
+      }    
   }
   
   // Check for Button Pressed
@@ -436,6 +452,7 @@ void loop()
         // Gray Out Buttons
         tft.fillRect(4,280,114, 36, GRAY);
         tft.fillRect(122,280,114,36,GRAY);
+        drawLoadingText();
       }
     }
   }

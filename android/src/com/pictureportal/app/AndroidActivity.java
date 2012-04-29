@@ -29,6 +29,7 @@ public class AndroidActivity extends Activity {
 	private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
 	private Uri fileUri;
 	private static String img_path;
+	private static String img_name;
 	private static byte b[];
 	private static long fsize;
 	
@@ -43,14 +44,13 @@ public class AndroidActivity extends Activity {
     }
     
     public void takePicture(View v) {
-    	//TODO 
     	server = ((EditText)findViewById(R.id.IP)).getText().toString();
     	// create Intent to take a picture and return control to the calling application
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
         fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
         if (fileUri == null) {
-        	//TODO let user know we can't take a picture because we can't save it
+        	// let user know we can't take a picture because we can't save it
         	Toast.makeText(this, "Sorry, couldn't create a file to save the picture.\n", Toast.LENGTH_SHORT).show();
         	return;
         }
@@ -71,7 +71,7 @@ public class AndroidActivity extends Activity {
             		OutputStream outToServer = serverSocket.getOutputStream();
             		int i;
             		
-            		//send image size
+            		// send image size
             		File file = new File(img_path);
         			fsize = file.length();
     				b = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(fsize).array();
@@ -79,25 +79,13 @@ public class AndroidActivity extends Activity {
         				outToServer.write(b[i]);
         			}
         			
-            		//send image
-            		FileInputStream fin; 
-            		fin = new FileInputStream(img_path); 
-            		BufferedInputStream bis = new BufferedInputStream(fin);
-            		DataInputStream dis = new DataInputStream(bis);
-            		
-        			try {          			
-            			for (i=0; i < fsize; i++) {
-            				byte buf = dis.readByte();
-            				outToServer.write(buf);
-            			}
-            		}
-            		catch(Exception e)
-            		{
-            			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
-            			return;
-            		}
-        			/*
-        			//send image location
+        			// send image name
+        			char iname[] = img_name.toCharArray();
+        			for (i=0; i < iname.length; i++){
+        				outToServer.write(iname[i]);
+        			}
+        			
+        			// send image location
         			ExifInterface exif = new ExifInterface(img_path);
         			float[] latlong = new float[2];
         			char loc[];
@@ -106,68 +94,45 @@ public class AndroidActivity extends Activity {
         				Address addr = geocoder.getFromLocation(latlong[0], latlong[1], 1).get(0);
         				loc = addr.getLocality().toCharArray();
         			}
-        			else
-    			       	loc = "Universe".toCharArray();
-       				//byte loc_len = (byte)loc.length;
-        			//outToServer.write(loc_len);
-        			for (i = 0; i<loc.length; i++){
-        				//outToServer.write(loc[i]);
-        				//Log.d("sdfs","asd");
+        			else {
+    			       	loc = "Milky Way".toCharArray();
         			}
-        			*/
+       				int loc_len = loc.length;
+        			outToServer.write(loc_len);
         			
+        			for (i = 0; i<loc_len; i++){
+        				outToServer.write(loc[i]);
+        			}
+        			
+            		// send image
+            		FileInputStream fis = new FileInputStream(img_path);
+            		BufferedInputStream in = new BufferedInputStream(fis);
+            		
+            		try {
+            			while ((i = in.read()) != -1) {  
+            				outToServer.write(i);
+            			}
+            		}
+            		catch(Exception e){
+            			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
+            			return;           			
+            		}
+        			       			
             		serverSocket.close();
             	} catch (Exception e) {
             		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
             		return;
             	}
             	Toast.makeText(this, Long.toString(fsize), Toast.LENGTH_SHORT).show();
-                //Toast.makeText(this, "Image saved to:\n" +
-                         //data.getData(), Toast.LENGTH_SHORT).show();
+            	
             } else if (resultCode == RESULT_CANCELED) {
-                //let user know they cancelled the image capture
+                // let user know they canceled the image capture
             	Toast.makeText(this, "Image capture canceled.\n", Toast.LENGTH_SHORT).show();
             } else {
                 // Image capture failed, advise user
             	Toast.makeText(this, "Image capture failed\n", Toast.LENGTH_SHORT).show();
             }
         }
-    }
-    
-    // Returns the contents of the file in a byte array.
-    public static byte[] getBytesFromFile(File file) throws IOException {
-        InputStream is = new FileInputStream(file);
-
-        // Get the size of the file
-        long length = file.length();
-
-        // You cannot create an array using a long type.
-        // It needs to be an int type.
-        // Before converting to an int type, check
-        // to ensure that file is not larger than Integer.MAX_VALUE.
-        if (length > Integer.MAX_VALUE) {
-            // File is too large
-        }
-
-        // Create the byte array to hold the data
-        byte[] bytes = new byte[(int)length];
-
-        // Read in the bytes
-        int offset = 0;
-        int numRead = 0;
-        while (offset < bytes.length
-               && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
-            offset += numRead;
-        }
-
-        // Ensure all the bytes have been read in
-        if (offset < bytes.length) {
-            throw new IOException("Could not completely read file " + file.getName());
-        }
-
-        // Close the input stream and return bytes
-        is.close();
-        return bytes;
     }
 	
 	/** Create a file Uri for saving an image or video */
@@ -206,8 +171,9 @@ public class AndroidActivity extends Activity {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
         if (type == MEDIA_TYPE_IMAGE){
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg");
-            img_path = mediaStorageDir.getPath() + File.separator + "IMG_"+ timeStamp + ".jpg";
+            img_name = timeStamp + ".jpg";
+            img_path = mediaStorageDir.getPath() + File.separator + "IMG_"+ img_name;
+            mediaFile = new File(img_path);
         } else {
             return null;
         }
