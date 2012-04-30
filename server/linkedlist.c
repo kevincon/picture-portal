@@ -74,3 +74,10 @@ void add(char * filen){
  void resetIterator(void){
     iterate = head;
 }
+
+/*
+ * Advance iterate node to tail
+ */
+void jumpTail(void) {
+    iterate = tail;
+}

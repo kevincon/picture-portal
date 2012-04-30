@@ -551,6 +551,9 @@ int receive_network(){
 
 	fclose(new_image_file);
 
+	add(path);
+	jumpTail();
+
 	send_image(path, 0, location_to_show);
 
 	return bytes_received;

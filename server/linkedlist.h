@@ -26,5 +26,6 @@ void add(char *);
 node * nextNode(void);
 node * previousNode(void);
 void resetIterator(void);
+void jumpTail(void);
 
 #endif
