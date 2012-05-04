@@ -6,7 +6,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
 import android.app.Activity;
@@ -44,7 +43,9 @@ public class AndroidActivity extends Activity {
     }
     
     public void takePicture(View v) {
+    	//set server to IP from IP field
     	server = ((EditText)findViewById(R.id.IP)).getText().toString();
+    	
     	// create Intent to take a picture and return control to the calling application
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
@@ -67,11 +68,12 @@ public class AndroidActivity extends Activity {
             if (resultCode == RESULT_OK) {
                 // Image captured and saved to fileUri specified in the Intent
             	try {
+            		// connection with server
             		Socket serverSocket = new Socket(server, 1337);
             		OutputStream outToServer = serverSocket.getOutputStream();
             		int i;
             		
-            		// send image size
+            		// send image size as byte array of size 8
             		File file = new File(img_path);
         			fsize = file.length();
     				b = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(fsize).array();
@@ -79,7 +81,7 @@ public class AndroidActivity extends Activity {
         				outToServer.write(b[i]);
         			}
         			
-        			// send image name
+        			// send image name as char array
         			char iname[] = img_name.toCharArray();
         			for (i=0; i < iname.length; i++){
         				outToServer.write(iname[i]);
@@ -97,14 +99,15 @@ public class AndroidActivity extends Activity {
         			else {
     			       	loc = "Milky Way".toCharArray();
         			}
+        			// send length of location name
        				int loc_len = loc.length;
         			outToServer.write(loc_len);
-        			
+        			// send location name as char array
         			for (i = 0; i<loc_len; i++){
         				outToServer.write(loc[i]);
         			}
         			
-            		// send image
+            		// send image byte by byte until eof
             		FileInputStream fis = new FileInputStream(img_path);
             		BufferedInputStream in = new BufferedInputStream(fis);
             		
@@ -114,20 +117,24 @@ public class AndroidActivity extends Activity {
             			}
             		}
             		catch(Exception e){
+            			// toast if we cannot send the image
             			Toast.makeText(this, "Could not send image.\n", Toast.LENGTH_SHORT).show();
             			return;           			
             		}
         			       			
             		serverSocket.close();
             	} catch (Exception e) {
+            		// toast if any data to be transmitted to the server fails to transfer
             		Toast.makeText(this, "Could not connect to server.\n", Toast.LENGTH_SHORT).show();
             		return;
             	}
+            	// toast the number of bytes sent to double check
             	Toast.makeText(this, Long.toString(fsize), Toast.LENGTH_SHORT).show();
             	
             } else if (resultCode == RESULT_CANCELED) {
                 // let user know they canceled the image capture
             	Toast.makeText(this, "Image capture canceled.\n", Toast.LENGTH_SHORT).show();
+            	
             } else {
                 // Image capture failed, advise user
             	Toast.makeText(this, "Image capture failed\n", Toast.LENGTH_SHORT).show();
